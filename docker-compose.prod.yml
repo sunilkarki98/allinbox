@@ -88,6 +88,31 @@ services:
     networks:
       - allinbox_net
 
+  worker:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: allinbox_worker
+    restart: always
+    command: npm run start:worker:all
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-unified_inbox}
+      - REDIS_URL=redis://dragonfly:6379
+      - API_URL=${API_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - META_APP_ID=${META_APP_ID}
+      - META_APP_SECRET=${META_APP_SECRET}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    networks:
+      - allinbox_net
+
   frontend:
     build:
       context: .
