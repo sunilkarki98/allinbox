@@ -13,7 +13,10 @@ COPY apps/frontend/package.json ./apps/frontend/
 
 RUN npm ci -w @allinbox/frontend --include-workspace-root
 
-COPY . .
+# Copy source code (Granular to preserve cache)
+COPY tsconfig.json turbo.json ./
+COPY packages ./packages
+COPY apps/frontend ./apps/frontend
 
 # Build packages first
 RUN npm run build -w @allinbox/types

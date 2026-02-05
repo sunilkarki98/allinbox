@@ -13,7 +13,10 @@ COPY apps/admin/package.json ./apps/admin/
 
 RUN npm ci -w @allinbox/admin --include-workspace-root
 
-COPY . .
+# Copy source code (Granular to preserve cache)
+COPY tsconfig.json turbo.json ./
+COPY packages ./packages
+COPY apps/admin ./apps/admin
 
 # Build packages first
 RUN npm run build -w @allinbox/types

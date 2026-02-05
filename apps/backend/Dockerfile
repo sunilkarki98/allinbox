@@ -15,7 +15,10 @@ COPY apps/backend/package.json ./apps/backend/
 RUN npm ci -w @allinbox/backend --include-workspace-root
 
 # Copy source code
-COPY . .
+# Copy source code (Granular to preserve cache)
+COPY tsconfig.json turbo.json ./
+COPY packages ./packages
+COPY apps/backend ./apps/backend
 
 # Build packages first
 RUN npm run build -w @allinbox/types
