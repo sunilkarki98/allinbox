@@ -85,7 +85,19 @@ services:
     networks:
       - allinbox_net
 
-
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: allinbox_admin_prod
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NODE_ENV: production
+      PORT: 3002
+      HOSTNAME: "0.0.0.0"
+    networks:
+      - allinbox_net
 
   nginx:
     image: nginx:alpine
