@@ -1,0 +1,14 @@
+{
+    "name": "SME Triage",
+    "short_name": "Triage",
+    "description": "Manage your social commerce leads from Instagram & TikTok",
+    "start_url": "/dashboard",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#4f46e5",
+    "orientation": "portrait",
+    "categories": [
+        "business",
+        "productivity"
+    ]
+}

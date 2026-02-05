@@ -1,0 +1,24 @@
+{
+    "name": "@allinbox/db",
+    "version": "0.0.0",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "build": "tsc",
+        "clean": "rm -rf dist"
+    },
+    "peerDependencies": {
+        "drizzle-orm": "*"
+    },
+    "devDependencies": {
+        "typescript": "^5.6.2"
+    }
+}

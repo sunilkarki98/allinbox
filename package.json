@@ -1,0 +1,31 @@
+{
+  "name": "allinbox-monorepo",
+  "private": true,
+  "packageManager": "npm@11.6.4",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:admin\"",
+    "dev:backend": "NODE_OPTIONS='--max-old-space-size=2048' npm run dev -w @allinbox/backend",
+    "dev:frontend": "NODE_OPTIONS='--max-old-space-size=2048' npm run dev -w @allinbox/frontend",
+    "dev:admin": "NODE_OPTIONS='--max-old-space-size=2048' npm run dev -w @allinbox/admin",
+    "dev:lite": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build": "turbo run build",
+    "build:affected": "turbo run build --filter=...[origin/main]",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules/.cache"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "drizzle-kit": "^0.31.8",
+    "tsx": "^4.19.1",
+    "turbo": "^2.4.0",
+    "typescript": "^5.6.2"
+  }
+}
