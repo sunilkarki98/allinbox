@@ -5,7 +5,7 @@
  * Usage: node dist/workers/decay.entry.js
  */
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '../../.env' });
 
 import { decayWorker } from './decay.worker.js';
 import { scheduleGlobalDecay } from './queue.js';

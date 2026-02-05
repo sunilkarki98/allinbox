@@ -5,7 +5,7 @@
  * Usage: node dist/workers/ingestion.entry.js
  */
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '../../.env' });
 
 import { ingestionWorker } from './ingestion.worker.js';
 

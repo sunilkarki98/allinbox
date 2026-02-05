@@ -3,7 +3,7 @@ import { tenants } from '@allinbox/db';
 import { eq } from 'drizzle-orm';
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ path: '../../../.env' });
 
 const email = process.argv[2];
 

@@ -5,7 +5,7 @@
  * Usage: node dist/workers/analysis.entry.js
  */
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '../../.env' });
 
 import { analysisWorker } from './analysis.worker.js';
 

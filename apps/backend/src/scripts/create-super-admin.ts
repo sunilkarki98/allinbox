@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ path: '../../../.env' });
 
 const email = process.argv[2];
 const defaultPassword = 'admin123'; // Default password for new admins

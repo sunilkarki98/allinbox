@@ -4,70 +4,87 @@ networks:
   allinbox_net:
     driver: bridge
 
+volumes:
+  postgres_data:
+  dragonfly_data:
+  cloudbeaver_data:
+
+
 services:
+  # ----------------------------
+  # Infrastructure
+  # ----------------------------
   postgres:
     image: postgres:15-alpine
-    container_name: allinbox_postgres_prod
-    restart: unless-stopped
+    container_name: allinbox_postgres
+    restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-unified_inbox}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - allinbox_net
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-unified_inbox}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  redis:
-    image: redis:alpine
-    container_name: allinbox_redis_prod
-    restart: unless-stopped
-    command: redis-server --save 60 1 --loglevel warning
+  dragonfly:
+    image: 'docker.dragonflydb.io/dragonflydb/dragonfly'
+    command: --proactor_threads=2 --default_lua_flags=allow-undeclared-keys --requirepass=${DRAGONFLY_PASSWORD:-}
+    # Note: If no password set in .env, remove --requirepass
+    container_name: allinbox_dragonfly
+    restart: always
+    ulimits:
+      memlock: -1
+    ports:
+      - "6379:6379"
+    volumes:
+      - dragonfly_data:/data
     networks:
       - allinbox_net
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 128M
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
+  # ----------------------------
+  # Applications
+  # ----------------------------
   backend:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
-    container_name: allinbox_backend_prod
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-unified_inbox}
-      REDIS_URL: redis://redis:6379
-      NODE_ENV: production
-      PORT: 3001
-      # ... other envs should be provided via .env
+    container_name: allinbox_backend
+    restart: always
     depends_on:
-      - postgres
-      - redis
-    networks:
-      - allinbox_net
-
-  worker:
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
-    container_name: allinbox_worker_prod
-    restart: unless-stopped
-    command: npm run start:worker:all
+      postgres:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-unified_inbox}
-      REDIS_URL: redis://redis:6379
-      NODE_ENV: production
-    depends_on:
-      - postgres
-      - redis
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-unified_inbox}
+      - REDIS_URL=redis://dragonfly:6379
+      - API_URL=${API_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - META_APP_ID=${META_APP_ID}
+      - META_APP_SECRET=${META_APP_SECRET}
+      - META_REDIRECT_BASE_URL=${META_REDIRECT_BASE_URL}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
     networks:
       - allinbox_net
 
@@ -75,13 +92,13 @@ services:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
-    container_name: allinbox_frontend_prod
-    restart: unless-stopped
+    container_name: allinbox_frontend
+    restart: always
+    ports:
+      - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-      NODE_ENV: production
-      PORT: 3000
-      HOSTNAME: "0.0.0.0"
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     networks:
       - allinbox_net
 
@@ -89,23 +106,23 @@ services:
     build:
       context: .
       dockerfile: apps/admin/Dockerfile
-    container_name: allinbox_admin_prod
-    restart: unless-stopped
+    container_name: allinbox_admin
+    restart: always
+    ports:
+      - "3002:3002"
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-      NODE_ENV: production
-      PORT: 3002
-      HOSTNAME: "0.0.0.0"
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - PORT=3002
     networks:
       - allinbox_net
 
   nginx:
     image: nginx:alpine
-    container_name: allinbox_nginx_prod
-    restart: unless-stopped
+    container_name: allinbox_nginx
+    restart: always
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
@@ -114,6 +131,3 @@ services:
       - admin
     networks:
       - allinbox_net
-
-volumes:
-  postgres_prod_data:

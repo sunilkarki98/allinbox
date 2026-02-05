@@ -1,11 +1,11 @@
 
 import { db } from '../db/index.js';
-import { interactions, leads } from '@allinbox/db';
+import { interactions } from '@allinbox/db';
 import { desc, eq, and, sql } from 'drizzle-orm';
 import dotenv from 'dotenv';
 import path from 'path';
 
-dotenv.config({ path: path.resolve(process.cwd(), 'apps/backend/.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const TENANT_ID = 'e9894c8d-ceba-4f37-9690-66a44a66aacd'; // From previous seed
 const POST_ID = 'ef554ef3-8e3a-461d-acd4-d6cbcf21c2c3'; // From previous debug

@@ -11,7 +11,7 @@
  * For development convenience, this file still works but logs a warning.
  */
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '../../.env' });
 
 console.warn('⚠️  [DEPRECATED] Running all workers in single process.');
 console.warn('⚠️  For production, use separate worker processes:');

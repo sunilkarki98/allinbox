@@ -5,8 +5,15 @@ export function middleware(request: NextRequest) {
     // We can't easily decode the JWT here without a library like jose
     // But we can check for the token's presence
     const token = request.cookies.get('token')?.value;
-    const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register');
-    const isAdminPage = request.nextUrl.pathname.startsWith('/admin');
+    const { pathname } = request.nextUrl;
+
+    // Check for tokens and redirects
+    const val = request.nextUrl.pathname;
+
+    // Simple path checks
+    const isLoginPage = val.startsWith('/login');
+    const isRegisterPage = val.startsWith('/register');
+    const isAuthPage = isLoginPage || isRegisterPage;
 
     if (!token && !isAuthPage) {
         return NextResponse.redirect(new URL('/login', request.url));

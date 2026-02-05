@@ -19,7 +19,7 @@ import platformsRoutes from './routes/platforms.routes.js';
 
 import cookieParser from 'cookie-parser';
 
-dotenv.config();
+dotenv.config({ path: '../../.env' });
 
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -171,7 +171,7 @@ const startServer = async () => {
 
         httpServer.listen(PORT, () => {
             logger.info(`Unified Inbox Backend running on port ${PORT}`, { mode: process.env.NODE_ENV });
-            console.log(`🚀 Server ready at http://localhost:${PORT}`);
+            console.log(`🚀 Server ready at ${env.API_URL}`);
         });
 
     } catch (e) {

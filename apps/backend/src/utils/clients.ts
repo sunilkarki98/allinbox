@@ -1,7 +1,9 @@
 import { createClient } from 'redis';
 import { Queue, Worker, Job } from 'bullmq';
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+import { env } from '../config/env.js';
+
+const REDIS_URL = env.REDIS_URL;
 
 /**
  * Dragonfly (Redis-compatible) Optimized Client Factory

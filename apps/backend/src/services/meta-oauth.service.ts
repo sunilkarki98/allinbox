@@ -7,6 +7,7 @@
 
 import { PlatformType } from './platform.service.js';
 import crypto from 'crypto';
+import { env } from '../config/env.js';
 
 // Meta Graph API version
 const GRAPH_API_VERSION = 'v18.0';
@@ -61,9 +62,11 @@ export interface ConnectedAccountData {
 }
 
 export class MetaOAuthService {
+
+
     private static appId = process.env.META_APP_ID;
     private static appSecret = process.env.META_APP_SECRET;
-    private static redirectBaseUrl = process.env.META_REDIRECT_BASE_URL || 'http://localhost:3001/api/platforms/callback';
+    private static redirectBaseUrl = process.env.META_REDIRECT_BASE_URL || `${env.API_URL}/api/platforms/callback`;
 
     /**
      * Generate OAuth authorization URL for a platform

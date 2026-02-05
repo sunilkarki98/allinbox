@@ -3,7 +3,7 @@ import pg from 'pg';
 import * as schema from '@allinbox/db';
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ path: '../../.env' });
 
 // Use a connection pool with proper limits for production
 const pool = new pg.Pool({

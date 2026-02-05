@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ path: '../../.env' });
 
 const envSchema = z.object({
     // Core
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
     PORT: z.coerce.number().default(3001),
+    API_URL: z.string().url().default('http://localhost:3001'),
 
     // Database
     DATABASE_URL: z.string().url(),

@@ -5,6 +5,7 @@
  */
 
 import crypto from 'crypto';
+import { env } from '../config/env.js';
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -35,9 +36,11 @@ export interface GoogleTokenResponse {
 }
 
 export class GoogleOAuthService {
+
+
     private static clientId = process.env.GOOGLE_CLIENT_ID;
     private static clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    private static redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/auth/callback/google';
+    private static redirectUri = process.env.GOOGLE_REDIRECT_URI || `${env.API_URL}/api/auth/callback/google`;
 
     /**
      * Generate Google OAuth authorization URL

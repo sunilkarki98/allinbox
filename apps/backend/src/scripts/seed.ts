@@ -5,7 +5,7 @@ import path from 'path';
 import bcrypt from 'bcrypt';
 
 // Load env from backend folder
-dotenv.config({ path: path.resolve(process.cwd(), 'apps/backend/.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const { Pool } = pg;
 const connectionString = process.env.DATABASE_URL || 'postgresql://user:password@localhost:5433/unified_inbox';
