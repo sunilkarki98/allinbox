@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { getJWTSecret } from '../utils/jwt.js';
 
 interface AuthRequest extends Request {
     user?: {

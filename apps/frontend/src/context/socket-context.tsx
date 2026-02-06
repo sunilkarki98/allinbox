@@ -20,12 +20,12 @@ const SocketContext = createContext<SocketContextType>({ socket: null, isConnect
 export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user } = useAuth();
+    const { user, token } = useAuth();
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
-        if (!user) {
+        if (!user || !token) {
             if (socket) {
                 socket.disconnect();
                 setSocket(null);
@@ -33,11 +33,14 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             return;
         }
 
-        // Initialize Socket
-        // Auth is handled via cookies which are automatically sent by credentials: true
+        // Initialize Socket with Supabase auth token
         const socketInstance = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000', {
             withCredentials: true,
-            transports: ['websocket', 'polling'], // Prioritize websocket
+            transports: ['websocket', 'polling'],
+            // Pass Supabase JWT in Authorization header for backend verification
+            extraHeaders: {
+                Authorization: `Bearer ${token}`,
+            },
         });
 
         socketInstance.on('connect', () => {
@@ -59,7 +62,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return () => {
             socketInstance.disconnect();
         };
-    }, [user?.id]); // Re-connect if user changes
+    }, [user?.id, token]); // Re-connect if user or token changes
 
     return (
         <SocketContext.Provider value={{ socket, isConnected }}>

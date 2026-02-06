@@ -13,6 +13,8 @@ const pool = new pg.Pool({
     max: 20, // Maximum connections in pool
     idleTimeoutMillis: 30000, // Close idle connections after 30s
     connectionTimeoutMillis: 5000, // Timeout for getting connection
+    // Required for Supabase SSL connection
+    ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
 // Log pool errors
