@@ -49,6 +49,9 @@ services:
       - dragonfly
     ports:
       - "3001:3001"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       # ===== Database (Supabase) =====
       - DATABASE_URL=${DATABASE_URL}
@@ -92,6 +95,9 @@ services:
     command: npm run start:worker:all
     depends_on:
       - dragonfly
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       # ===== Database (Supabase) =====
       - DATABASE_URL=${DATABASE_URL}
