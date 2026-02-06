@@ -13,19 +13,21 @@ export const subscriptionPlanEnum = pgEnum('subscription_plan', ['FREE', 'PAID']
 export const leadStatusEnum = pgEnum('lead_status', ['COLD', 'WARM', 'HOT', 'CONVERTED']);
 // AI Intent enum for structured intent classification
 export const aiIntentEnum = pgEnum('ai_intent', [
-    'purchase_intent',    // "I want to buy"
-    'service_inquiry',    // "Do you provide this service?" (for service sellers)
-    'pricing_inquiry',    // "How much?"
-    'shipping_inquiry',   // "Do you deliver?"
-    'availability_inquiry', // "Is this available?"
-    'general_comment',    // "Nice!" / "Love it"
-    'spam'                // Irrelevant/promotional
+    'purchase_intent',
+    'service_inquiry',
+    'pricing_inquiry',
+    'shipping_inquiry',
+    'availability_inquiry',
+    'general_comment',
+    'complaint',
+    'general',
+    'spam'
 ]);
 // Offering type enum for products vs services
 export const offeringTypeEnum = pgEnum('offering_type', ['PRODUCT', 'SERVICE']);
 export const priceTypeEnum = pgEnum('price_type', ['FIXED', 'HOURLY', 'QUOTE', 'RANGE']);
 export const businessTypeEnum = pgEnum('business_type', ['PRODUCT', 'SERVICE']);
-export const sentimentEnum = pgEnum('sentiment', ['POSITIVE', 'NEUTRAL', 'NEGATIVE']);
+export const sentimentEnum = pgEnum('sentiment', ['positive', 'neutral', 'negative']);
 
 // ============================================================================
 // TENANTS (SME Business Owners - Your Customers)
