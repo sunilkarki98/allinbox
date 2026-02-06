@@ -42,7 +42,7 @@ const io = new Server(httpServer, {
 import { env } from './config/env.js';
 
 const PORT = env.PORT;
-const allowedOrigins = [env.FRONTEND_URL];
+const allowedOrigins = [env.FRONTEND_URL, env.ADMIN_URL];
 
 // Start Server Wrapper
 const startServer = async () => {

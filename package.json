@@ -16,6 +16,8 @@
     "build:affected": "turbo run build --filter=...[origin/main]",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "db:push": "turbo run db:push",
+    "db:studio": "turbo run db:studio",
     "clean": "turbo run clean && rm -rf node_modules/.cache"
   },
   "dependencies": {

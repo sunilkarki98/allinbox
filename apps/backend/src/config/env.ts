@@ -18,6 +18,7 @@ const envSchema = z.object({
     // Security
     JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
     FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+    ADMIN_URL: z.string().url().default('http://localhost:3002'), // Added for Admin Dashboard
 
     // External APIs (Optional in Dev, Required in Prod usually, but we keep optional for now to avoid breaking local dev if not set)
     INSTAGRAM_CLIENT_ID: z.string().optional(),
