@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
     // We can't easily decode the JWT here without a library like jose
     // But we can check for the token's presence
     const token = request.cookies.get('token')?.value;
