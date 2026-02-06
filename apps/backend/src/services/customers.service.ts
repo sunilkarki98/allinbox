@@ -49,8 +49,11 @@ export class CustomersService {
                 // Build query conditions based on platform
                 const conditions = [];
 
-                if (platform === 'INSTAGRAM' && username) {
-                    conditions.push(eq(customers.instagramUsername, username));
+                if (platform === 'INSTAGRAM') {
+                    // PRIORITIZE Stable ID
+                    if (userId) conditions.push(eq(customers.instagramUserId, userId));
+                    // Check legacy username match (for backfill)
+                    if (username) conditions.push(eq(customers.instagramUsername, username));
                 } else if (platform === 'FACEBOOK' && userId) {
                     conditions.push(eq(customers.facebookUserId, userId));
                 } else if (platform === 'WHATSAPP' && phone) {
@@ -78,10 +81,20 @@ export class CustomersService {
                         const updates: Partial<typeof customers.$inferInsert> = {};
                         let needsUpdate = false;
 
-                        if (platform === 'INSTAGRAM' && username && !profile.instagramUsername) {
-                            updates.instagramUsername = username;
-                            needsUpdate = true;
+                        // INSTAGRAM LOGIC (Auto-Repair Username Changes)
+                        if (platform === 'INSTAGRAM') {
+                            // 1. Backfill ID if missing (Critical for stability)
+                            if (userId && !profile.instagramUserId) {
+                                updates.instagramUserId = userId;
+                                needsUpdate = true;
+                            }
+                            // 2. Update Username if changed (User renamed themselves)
+                            if (username && profile.instagramUsername !== username) {
+                                updates.instagramUsername = username;
+                                needsUpdate = true;
+                            }
                         }
+
                         if (platform === 'FACEBOOK' && userId && !profile.facebookUserId) {
                             updates.facebookUserId = userId;
                             needsUpdate = true;
@@ -105,7 +118,7 @@ export class CustomersService {
                                 .set(updates)
                                 .where(eq(customers.id, profile.id));
 
-                            console.log(`📎 Merged ${platform} identity into profile: ${profile.id}`);
+                            console.log(`📎 Merged/Updated ${platform} identity for profile: ${profile.id}`);
                         }
 
                         return { profile: { ...profile, ...updates } as Customer, isNew: false };
@@ -118,6 +131,7 @@ export class CustomersService {
                         tenantId,
                         displayName: displayName || username || phone || 'Unknown',
                         instagramUsername: platform === 'INSTAGRAM' ? username : null,
+                        instagramUserId: platform === 'INSTAGRAM' ? userId : null, // Store stable ID
                         facebookUserId: platform === 'FACEBOOK' ? userId : null,
                         whatsappPhone: platform === 'WHATSAPP' ? phone : null,
                         tiktokUsername: platform === 'TIKTOK' ? username : null,

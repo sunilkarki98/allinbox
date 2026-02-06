@@ -159,6 +159,7 @@ export const customers = pgTable('customers', {
 
     // Linked platform accounts (cross-channel identity)
     instagramUsername: varchar('instagram_username', { length: 255 }),
+    instagramUserId: varchar('instagram_user_id', { length: 255 }), // Stable ID (PSID) from Meta
     facebookUserId: varchar('facebook_user_id', { length: 255 }),
     whatsappPhone: varchar('whatsapp_phone', { length: 50 }),
     tiktokUsername: varchar('tiktok_username', { length: 255 }),
@@ -177,6 +178,7 @@ export const customers = pgTable('customers', {
 }, (table) => [
     index('customer_tenant_idx').on(table.tenantId),
     index('customer_ig_idx').on(table.tenantId, table.instagramUsername),
+    index('customer_ig_id_idx').on(table.tenantId, table.instagramUserId),
     index('customer_fb_idx').on(table.tenantId, table.facebookUserId),
     index('customer_wa_idx').on(table.tenantId, table.whatsappPhone),
     index('customer_score_idx').on(table.tenantId, table.totalLeadScore),
