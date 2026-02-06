@@ -11,6 +11,7 @@ import customersRoutes from './routes/customers.routes.js';
 import apiKeysRoutes from './routes/api-keys.routes.js';
 import webhooksRoutes from './routes/webhooks.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import { db } from './db/index.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { correlationMiddleware, logger } from './utils/logger.js';
 import { dragonfly } from './utils/clients.js';
@@ -50,6 +51,10 @@ const startServer = async () => {
         // 1. Connect to Redis/Dragonfly
         await dragonfly.ensureConnection();
         console.log('✅ Dragonfly/Redis Connected');
+
+        // 1.5. Connect to Supabase
+        await db.execute(sql`SELECT 1`);
+        console.log('✅ Supabase Database Connected');
 
         // 2. Initialize Rate Limiters (now safe)
         const { globalLimiter, authLimiter, webhookLimiter, tenantApiLimiter } = (await import('./middleware/rate-limiter.js')).createRateLimiters();
@@ -133,7 +138,6 @@ const startServer = async () => {
 
             try {
                 // Check DB
-                const { db } = await import('./db/index.js');
                 await db.execute(sql`SELECT 1`);
                 health.db = 'connected';
             } catch (e) {

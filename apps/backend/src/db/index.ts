@@ -5,9 +5,11 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: '../../.env' });
 
+import { env } from '../config/env.js';
+
 // Use a connection pool with proper limits for production
 const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: env.DATABASE_URL,
     max: 20, // Maximum connections in pool
     idleTimeoutMillis: 30000, // Close idle connections after 30s
     connectionTimeoutMillis: 5000, // Timeout for getting connection

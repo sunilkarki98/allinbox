@@ -25,6 +25,7 @@ export const aiIntentEnum = pgEnum('ai_intent', [
 export const offeringTypeEnum = pgEnum('offering_type', ['PRODUCT', 'SERVICE']);
 export const priceTypeEnum = pgEnum('price_type', ['FIXED', 'HOURLY', 'QUOTE', 'RANGE']);
 export const businessTypeEnum = pgEnum('business_type', ['PRODUCT', 'SERVICE']);
+export const sentimentEnum = pgEnum('sentiment', ['POSITIVE', 'NEUTRAL', 'NEGATIVE']);
 
 // ============================================================================
 // TENANTS (SME Business Owners - Your Customers)
@@ -220,10 +221,10 @@ export const interactions = pgTable('interactions', {
     repliedAt: timestamp('replied_at'),
 
     // AI analysis
-    aiIntent: varchar('ai_intent', { length: 50 }),
+    aiIntent: aiIntentEnum('ai_intent'),
     aiConfidence: integer('ai_confidence'),
     aiSuggestion: text('ai_suggestion'),
-    sentiment: varchar('sentiment', { length: 20 }),
+    sentiment: sentimentEnum('sentiment'),
     flagLowConfidence: boolean('flag_low_confidence').default(false),
     isSpam: boolean('is_spam').default(false),
 

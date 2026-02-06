@@ -12,17 +12,39 @@ const REDIS_URL = env.REDIS_URL;
 class DragonflyManager {
     private static instance: DragonflyManager;
     private client: ReturnType<typeof createClient>;
-    private bullConnection: { host: string; port: number };
+    private bullConnection: {
+        host: string;
+        port: number;
+        retryStrategy?: (times: number) => number | void | null;
+        maxRetriesPerRequest?: number | null;
+    };
 
     private constructor() {
         const url = new URL(REDIS_URL);
         this.bullConnection = {
             host: url.hostname,
-            port: parseInt(url.port) || 6379
+            port: parseInt(url.port) || 6379,
+            retryStrategy: (times: number) => Math.min(times * 50, 2000),
+            maxRetriesPerRequest: null
         };
 
-        this.client = createClient({ url: REDIS_URL });
+        this.client = createClient({
+            url: REDIS_URL,
+            socket: {
+                reconnectStrategy: (retries) => {
+                    if (retries > 20) {
+                        console.error('[Dragonfly] Max reconnection retries reached.');
+                        return new Error('Max retries reached');
+                    }
+                    return Math.min(retries * 100, 3000);
+                }
+            }
+        });
+
         this.client.on('error', (err) => console.error('[Dragonfly] Client Error:', err));
+        this.client.on('connect', () => console.log('[Dragonfly] Client Connecting...'));
+        this.client.on('ready', () => console.log('[Dragonfly] Client Ready'));
+        this.client.on('reconnecting', () => console.log('[Dragonfly] Client Reconnecting...'));
     }
 
     public static getInstance(): DragonflyManager {
