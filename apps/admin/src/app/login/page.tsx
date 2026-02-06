@@ -32,15 +32,7 @@ export default function LoginPage() {
         }
     };
 
-    const handleGoogleLogin = async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: `${window.location.origin}/`
-            }
-        });
-        if (error) setError(error.message);
-    };
+
 
     return (
         <div className="min-h-screen flex bg-gradient-to-b from-gray-900 via-gray-900 to-black">
