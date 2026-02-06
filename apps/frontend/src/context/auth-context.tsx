@@ -31,12 +31,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const router = useRouter();
 
     useEffect(() => {
-        // Supabase Auth Listener
+        // 1. Check active session immediately (handles URL hash parsing)
+        const initSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setSession(session);
+            if (session?.user) {
+                await syncUser(session.user, session.access_token);
+            }
+            setIsLoading(false);
+        };
+        initSession();
+
+        // 2. Listen for changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setSession(session);
 
             if (session?.user) {
-                // Fetch our custom tenant data from the backend using the Supabase token
                 await syncUser(session.user, session.access_token);
             } else {
                 setUser(null);

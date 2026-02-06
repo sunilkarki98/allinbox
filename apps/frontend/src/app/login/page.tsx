@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { supabase } from '@/lib/supabase';
 
@@ -23,6 +23,14 @@ function LoginForm() {
             setError(errorMap[errorParam] || 'An error occurred during sign in');
         }
     }, [errorParam]);
+
+    // NEW: Auto-redirect if already logged in
+    const router = useRouter(); // Need to import useRouter at top
+    useEffect(() => {
+        if (session) {
+            router.push('/dashboard');
+        }
+    }, [session, router]);
 
     const handleGoogleLogin = async () => {
         /* OLD GOOGLE LOGIN REDIRECT
