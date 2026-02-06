@@ -48,7 +48,7 @@ services:
     depends_on:
       - dragonfly
     ports:
-      - "3001:3001"
+      - "80:3001"
     dns:
       - 8.8.8.8
       - 8.8.4.4
