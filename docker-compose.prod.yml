@@ -35,11 +35,6 @@ services:
       - dragonfly_data:/data
     networks:
       - allinbox_net
-    healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8080/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # =====================================================
   # Backend API Server
@@ -51,8 +46,7 @@ services:
     container_name: allinbox_backend
     restart: always
     depends_on:
-      dragonfly:
-        condition: service_healthy
+      - dragonfly
     ports:
       - "3001:3001"
     environment:
@@ -100,8 +94,7 @@ services:
     restart: always
     command: npm run start:worker:all
     depends_on:
-      dragonfly:
-        condition: service_healthy
+      - dragonfly
     environment:
       # ===== Database (Supabase) =====
       - DATABASE_URL=${DATABASE_URL}
