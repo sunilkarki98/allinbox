@@ -4,14 +4,16 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '../lib/api';
 import { Tenant } from '@allinbox/types';
+import { supabase } from '../lib/supabase';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 
 // The User object returned by /auth/me is a subset of Tenant + role
 type User = Pick<Tenant, 'id' | 'email' | 'status'> & { role?: string };
 
 interface AuthContextType {
     user: User | null;
+    session: any | null;
     token: string | null;
-    login: (token: string, user: User) => void;
     logout: () => void;
     isLoading: boolean;
 }
@@ -20,59 +22,60 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
+    const [session, setSession] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
     useEffect(() => {
-        validateSession();
+        // Supabase Auth Listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            setSession(session);
+
+            if (session?.user) {
+                // Fetch our custom tenant data from the backend using the Supabase token
+                await syncUser(session.user, session.access_token);
+            } else {
+                setUser(null);
+                localStorage.removeItem('user');
+            }
+            setIsLoading(false);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
-    const validateSession = async () => {
+    const syncUser = async (supabaseUser: SupabaseUser, accessToken?: string) => {
         try {
-            const response = await api.get('/auth/me');
+            const response = await api.get('/auth/me', accessToken);
             if (response?.user) {
                 if (response.user.role !== 'SUPER_ADMIN') {
                     // Not an admin? Get out.
                     console.error('User is not SUPER_ADMIN');
-                    logout(); // Force logout
+                    logout();
                     return;
                 }
                 setUser(response.user);
                 localStorage.setItem('user', JSON.stringify(response.user));
-            } else {
-                clearLocalUser();
             }
         } catch (err) {
-            clearLocalUser();
-        } finally {
-            setIsLoading(false);
+            console.error('Failed to sync user', err);
         }
-    };
-
-    const clearLocalUser = () => {
-        setUser(null);
-        localStorage.removeItem('user');
-    };
-
-    const login = (tokenIgnored: string, newUser: User) => {
-        setUser(newUser);
-        localStorage.setItem('user', JSON.stringify(newUser));
-
-        if (newUser.role !== 'SUPER_ADMIN') {
-            alert('Access Denied: You are not a Super Admin');
-            return;
-        }
-        router.push('/');
     };
 
     const logout = async () => {
-        try { await api.post('/auth/logout', {}); } catch (e) { }
-        clearLocalUser();
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.error('Logout failed', e);
+        }
+        setUser(null);
+        localStorage.removeItem('user');
         router.push('/login');
     };
 
+
     return (
-        <AuthContext.Provider value={{ user, token: null, login, logout, isLoading }}>
+        <AuthContext.Provider value={{ user, session, token: session?.access_token || null, logout, isLoading }}>
             {children}
         </AuthContext.Provider>
     );

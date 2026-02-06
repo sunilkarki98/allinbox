@@ -148,6 +148,35 @@ export class AuthService {
         return updatedTenant;
     }
 
+    static async syncUser(userId: string, email?: string) {
+        // Check if tenant exists
+        const [existingTenant] = await db.select().from(tenants).where(eq(tenants.id, userId)).limit(1);
+
+        if (existingTenant) {
+            return existingTenant;
+        }
+
+        // If not found and we have an email, we can auto-create the record
+        // This is a fallback in case the Supabase Trigger hasn't run yet.
+        if (email) {
+            const trialEndsAt = new Date();
+            trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
+            const [newTenant] = await db.insert(tenants).values({
+                id: userId,
+                email: email,
+                status: 'TRIAL',
+                subscriptionPlan: 'FREE',
+                trialEndsAt,
+                onboardingCompleted: false
+            }).returning();
+
+            return newTenant;
+        }
+
+        return null;
+    }
+
     private static generateToken(tenantId: string) {
         // Keep 'userId' in payload for backward compatibility with middleware/frontend
         return jwt.sign({ userId: tenantId }, getJWTSecret(), { expiresIn: JWT_EXPIRY.ACCESS_TOKEN });

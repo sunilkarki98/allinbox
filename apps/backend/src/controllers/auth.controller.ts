@@ -70,8 +70,9 @@ export const logout = (req: Request, res: Response) => {
 // GET /api/auth/me - Validate session and return current user
 export const me = async (req: Request, res: Response) => {
     try {
-        const { userId } = res.locals.user as { userId: string };
+        const { userId, email } = res.locals.user as { userId: string; email?: string };
 
+        /* OLD FETCH LOGIC
         const [tenant] = await db.select({
             id: tenants.id,
             email: tenants.email,
@@ -82,11 +83,15 @@ export const me = async (req: Request, res: Response) => {
         if (!tenant) {
             return res.status(404).json({ error: 'Tenant not found' });
         }
+        */
 
-        // Return actual DB role so frontend AuthContext works correctly (requires SUPER_ADMIN)
-        const user = tenant;
+        const tenant = await AuthService.syncUser(userId, email);
 
-        res.json({ user });
+        if (!tenant) {
+            return res.status(404).json({ error: 'User not found or sync failed' });
+        }
+
+        res.json({ user: tenant });
     } catch (error) {
         console.error('Me error:', error);
         res.status(500).json({ error: 'Internal server error' });

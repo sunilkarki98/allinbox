@@ -3,12 +3,13 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { supabase } from '@/lib/supabase';
 
 function LoginForm() {
     const searchParams = useSearchParams();
     const errorParam = searchParams.get('error');
     const [error, setError] = useState('');
-    const { login } = useAuth();
+    const { session } = useAuth();
 
     useEffect(() => {
         if (errorParam) {
@@ -23,8 +24,20 @@ function LoginForm() {
         }
     }, [errorParam]);
 
-    const handleGoogleLogin = () => {
+    const handleGoogleLogin = async () => {
+        /* OLD GOOGLE LOGIN REDIRECT
         window.location.href = '/api/auth/google';
+        */
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/dashboard`
+            }
+        });
+
+        if (error) {
+            setError(error.message);
+        }
     };
 
     return (

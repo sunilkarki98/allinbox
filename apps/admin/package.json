@@ -10,13 +10,14 @@
     "clean": "rm -rf .next"
   },
   "dependencies": {
+    "@allinbox/types": "*",
+    "@allinbox/validators": "*",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
-    "@allinbox/types": "*",
-    "@allinbox/validators": "*",
+    "@supabase/supabase-js": "^2.95.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

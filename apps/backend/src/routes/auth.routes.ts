@@ -14,6 +14,7 @@ const authLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+/* REDUNDANT WITH SUPABASE AUTH (RETAINED AS COMMENTS)
 router.post('/register', authLimiter, AuthController.register);
 router.post('/login', authLimiter, AuthController.login);
 router.post('/logout', AuthController.logout);
@@ -21,6 +22,7 @@ router.post('/logout', AuthController.logout);
 // Google OAuth Routes
 router.get('/google', authLimiter, AuthController.initiateGoogleAuth);
 router.get('/callback/google', AuthController.handleGoogleCallback);
+*/
 
 router.get('/me', authenticateToken, AuthController.me);
 router.patch('/profile', authenticateToken, AuthController.updateProfile);
