@@ -24,12 +24,22 @@ function LoginForm() {
         }
     }, [errorParam]);
 
-    // NEW: Auto-redirect if already logged in
-    const router = useRouter(); // Need to import useRouter at top
+    // NEW: Auto-redirect if already logged in (Double Check)
+    const router = useRouter();
     useEffect(() => {
-        if (session) {
-            router.push('/dashboard');
-        }
+        const checkSession = async () => {
+            // Check context first
+            if (session) {
+                router.push('/dashboard');
+                return;
+            }
+            // Check Supabase directly (bypassing context delay)
+            const { data } = await supabase.auth.getSession();
+            if (data.session) {
+                router.push('/dashboard');
+            }
+        };
+        checkSession();
     }, [session, router]);
 
     const handleGoogleLogin = async () => {
