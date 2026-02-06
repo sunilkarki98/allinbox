@@ -50,11 +50,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const syncUser = async (supabaseUser: SupabaseUser, accessToken?: string) => {
         try {
-            // We call /auth/me to get the local tenant data
+            // We call /auth/me to ensure the backend has synced the user record
             const response = await api.get('/auth/me', accessToken);
             if (response?.user) {
                 setUser(response.user);
-                localStorage.setItem('user', JSON.stringify(response.user));
 
                 // Redirect to onboarding if not completed
                 if (!response.user.onboardingCompleted && !window.location.pathname.startsWith('/onboarding')) {
@@ -62,9 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             }
         } catch (err) {
-            console.error('Failed to sync user', err);
-            // If the backend fails to sync, we might want to log out or show an error
-            // But for now, we'll just log it.
+            console.error('Failed to sync user with backend', err);
         }
     };
 

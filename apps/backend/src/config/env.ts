@@ -17,20 +17,19 @@ const envSchema = z.object({
 
     // Security
     JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-    SUPABASE_JWT_SECRET: z.string().min(1, 'SUPABASE_JWT_SECRET is required for Supabase Auth integration'),
     FRONTEND_URL: z.string().url().default('http://localhost:3000'),
-    ADMIN_URL: z.string().url().default('http://localhost:3002'), // Added for Admin Dashboard
+    ADMIN_URL: z.string().url().default('http://localhost:3002'),
+    ENCRYPTION_KEY: z.string().optional(),
+    WEBHOOK_VERIFY_TOKEN: z.string().optional(),
 
-    // External APIs (Optional in Dev, Required in Prod usually, but we keep optional for now to avoid breaking local dev if not set)
+    // Supabase Auth (Required for production)
+    SUPABASE_JWT_SECRET: z.string().min(32, 'SUPABASE_JWT_SECRET is required for authentication'),
+
+    // External APIs (Optional)
     INSTAGRAM_CLIENT_ID: z.string().optional(),
     INSTAGRAM_CLIENT_SECRET: z.string().optional(),
     FACEBOOK_APP_ID: z.string().optional(),
     FACEBOOK_APP_SECRET: z.string().optional(),
-
-    // Google OAuth
-    GOOGLE_CLIENT_ID: z.string().optional(),
-    GOOGLE_CLIENT_SECRET: z.string().optional(),
-    GOOGLE_REDIRECT_URI: z.string().url().optional(),
 
     // AI
     GEMINI_API_KEY: z.string().optional(),

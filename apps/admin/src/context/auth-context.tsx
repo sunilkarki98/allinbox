@@ -49,16 +49,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const response = await api.get('/auth/me', accessToken);
             if (response?.user) {
                 if (response.user.role !== 'SUPER_ADMIN') {
-                    // Not an admin? Get out.
                     console.error('User is not SUPER_ADMIN');
                     logout();
                     return;
                 }
                 setUser(response.user);
-                localStorage.setItem('user', JSON.stringify(response.user));
             }
         } catch (err) {
-            console.error('Failed to sync user', err);
+            console.error('Failed to sync user with backend', err);
         }
     };
 

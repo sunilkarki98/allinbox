@@ -11,124 +11,28 @@ import { GoogleUserInfo } from './google-oauth.service.js';
 export class AuthService {
     private static SALT_ROUNDS = 12; // Increased from 10 for better security
 
+    /**
+     * @deprecated Legacy custom registration. Users should sign up via Supabase.
+     */
     static async register(data: z.infer<typeof registerSchema>) {
-        const existingTenant = await db.select().from(tenants).where(eq(tenants.email, data.email)).limit(1);
-        if (existingTenant.length > 0) {
-            throw new Error('Tenant already exists');
-        }
-
-        const hashedPassword = await bcrypt.hash(data.password, this.SALT_ROUNDS);
-
-        // Calculate trial end date (7 days from now)
-        const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + 7);
-
-        // Insert and return the tenant.
-        const [newTenant] = await db.insert(tenants).values({
-            email: data.email,
-            passwordHash: hashedPassword,
-            status: 'TRIAL',
-            subscriptionPlan: 'FREE',
-            trialEndsAt,
-        }).returning({
-            id: tenants.id,
-            email: tenants.email,
-            status: tenants.status,
-            subscriptionPlan: tenants.subscriptionPlan,
-            trialEndsAt: tenants.trialEndsAt
-        });
-
-        const token = this.generateToken(newTenant.id);
-        // Map to "user" for frontend compatibility
-        return { user: { ...newTenant, role: 'CUSTOMER' }, token };
-    }
-
-    static async login(data: z.infer<typeof loginSchema>) {
-        const [tenant] = await db.select().from(tenants).where(eq(tenants.email, data.email)).limit(1);
-        if (!tenant) {
-            throw new Error('Invalid credentials');
-        }
-
-        // Check if user has a password (might be Google-only user)
-        if (!tenant.passwordHash) {
-            throw new Error('Please sign in with Google');
-        }
-
-        const isMatch = await bcrypt.compare(data.password, tenant.passwordHash);
-        if (!isMatch) {
-            throw new Error('Invalid credentials');
-        }
-
-        const token = this.generateToken(tenant.id);
-        // Map to "user" for frontend compatibility
-        return { user: { id: tenant.id, email: tenant.email, role: tenant.role, status: tenant.status }, token };
+        console.warn('AuthService.register is deprecated. Use Supabase Auth.');
+        throw new Error('Please sign up via Supabase');
     }
 
     /**
-     * Login or register a user via Google OAuth
-     * Creates account if doesn't exist, logs in if exists
+     * @deprecated Legacy custom login. Users should sign in via Supabase.
+     */
+    static async login(data: z.infer<typeof loginSchema>) {
+        console.warn('AuthService.login is deprecated. Use Supabase Auth.');
+        throw new Error('Please sign in via Supabase');
+    }
+
+    /**
+     * @deprecated Legacy Google OAuth. Users should use Supabase Google Auth.
      */
     static async loginOrRegisterWithGoogle(googleUser: GoogleUserInfo) {
-        // Check if user exists by email
-        const [existingTenant] = await db.select().from(tenants)
-            .where(eq(tenants.email, googleUser.email))
-            .limit(1);
-
-        if (existingTenant) {
-            // Update Google-specific fields if needed
-            if (!existingTenant.googleId || !existingTenant.avatarUrl) {
-                await db.update(tenants)
-                    .set({
-                        googleId: googleUser.id,
-                        avatarUrl: googleUser.picture,
-                        businessName: existingTenant.businessName || googleUser.name,
-                    })
-                    .where(eq(tenants.id, existingTenant.id));
-            }
-
-            const token = this.generateToken(existingTenant.id);
-            return {
-                user: {
-                    id: existingTenant.id,
-                    email: existingTenant.email,
-                    role: existingTenant.role,
-                    status: existingTenant.status,
-                    avatarUrl: googleUser.picture,
-                },
-                token,
-                isNewUser: false
-            };
-        }
-
-        // Create new user
-        const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + 7);
-
-        const [newTenant] = await db.insert(tenants).values({
-            email: googleUser.email,
-            googleId: googleUser.id,
-            avatarUrl: googleUser.picture,
-            businessName: googleUser.name,
-            status: 'TRIAL',
-            subscriptionPlan: 'FREE',
-            trialEndsAt,
-            // passwordHash is null for Google-only users
-        }).returning({
-            id: tenants.id,
-            email: tenants.email,
-            status: tenants.status,
-            role: tenants.role,
-        });
-
-        const token = this.generateToken(newTenant.id);
-        return {
-            user: {
-                ...newTenant,
-                avatarUrl: googleUser.picture,
-            },
-            token,
-            isNewUser: true
-        };
+        console.warn('AuthService.loginOrRegisterWithGoogle is deprecated. Use Supabase Google Auth.');
+        throw new Error('Please use Supabase Google Auth');
     }
 
     static async completeOnboarding(userId: string, data: z.infer<typeof onboardingSchema>) {
@@ -148,38 +52,59 @@ export class AuthService {
         return updatedTenant;
     }
 
+    /**
+     * Primary integration point: Ensures a matching Tenant record exists in our DB
+     * for a Supabase User.
+     */
     static async syncUser(userId: string, email?: string) {
-        // Check if tenant exists
+        // 1. Check if tenant exists
         const [existingTenant] = await db.select().from(tenants).where(eq(tenants.id, userId)).limit(1);
 
         if (existingTenant) {
             return existingTenant;
         }
 
-        // If not found and we have an email, we can auto-create the record
-        // This is a fallback in case the Supabase Trigger hasn't run yet.
+        // 2. If not found and we have an email, auto-create the record
+        // This handles both first-time logins and trigger delays.
         if (email) {
             const trialEndsAt = new Date();
             trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
-            const [newTenant] = await db.insert(tenants).values({
-                id: userId,
-                email: email,
-                status: 'TRIAL',
-                subscriptionPlan: 'FREE',
-                trialEndsAt,
-                onboardingCompleted: false
-            }).returning();
+            try {
+                const [newTenant] = await db.insert(tenants).values({
+                    id: userId,
+                    email: email,
+                    status: 'TRIAL',
+                    subscriptionPlan: 'FREE',
+                    trialEndsAt,
+                    onboardingCompleted: false
+                })
+                    .onConflictDoNothing() // Handle race conditions with triggers
+                    .returning();
 
-            return newTenant;
+                if (newTenant) {
+                    console.log(`Successfully synced/created tenant for user: ${userId}`);
+                    return newTenant;
+                }
+
+                // If onConflictDoNothing prevented insert, re-fetch
+                const [refetched] = await db.select().from(tenants).where(eq(tenants.id, userId)).limit(1);
+                return refetched || null;
+
+            } catch (err) {
+                console.error('Failed to sync user in DB:', err);
+                return null;
+            }
         }
 
         return null;
     }
 
+    /**
+     * @deprecated No longer needed as we use Supabase JWTs strictly.
+     */
     private static generateToken(tenantId: string) {
-        // Keep 'userId' in payload for backward compatibility with middleware/frontend
-        return jwt.sign({ userId: tenantId }, getJWTSecret(), { expiresIn: JWT_EXPIRY.ACCESS_TOKEN });
+        return 'DEPRECATED';
     }
 }
 

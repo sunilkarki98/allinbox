@@ -27,7 +27,6 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { sql } from 'drizzle-orm';
 import { createAdapter } from '@socket.io/redis-adapter';
-import { getJWTSecret } from './utils/jwt.js';
 import { connectRedis } from './utils/redis.js';
 const redis = dragonfly.getClient();
 
@@ -147,19 +146,44 @@ const startServer = async () => {
             res.json(health);
         });
 
-        // Socket Auth & Logic (Tenan Isolation Enforced)
+        // Socket Auth & Logic (Tenant Isolation Enforced)
+        // IMPORTANT: Uses Supabase JWT verification for consistency with HTTP auth
         io.use((socket, next) => {
             try {
-                const cookieHeader = socket.handshake.headers.cookie;
-                if (!cookieHeader) return next(new Error('Authentication error: No cookie'));
-                const token = cookieHeader.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-                if (!token) return next(new Error('Authentication error: No token'));
+                // Check Authorization header first (preferred), then cookies
+                const authHeader = socket.handshake.headers.authorization;
+                let token: string | undefined;
 
-                const decoded = jwt.verify(token, getJWTSecret()) as { userId: string, role: string };
-                socket.data.tenantId = decoded.userId; // In this system, userId IS tenantId
-                socket.data.role = decoded.role;
+                if (authHeader && authHeader.startsWith('Bearer ')) {
+                    token = authHeader.split(' ')[1];
+                } else {
+                    const cookieHeader = socket.handshake.headers.cookie;
+                    if (cookieHeader) {
+                        // Look for Supabase token cookie or legacy token cookie
+                        const sbToken = cookieHeader.split('; ').find(row => row.startsWith('sb-access-token='))?.split('=')[1];
+                        const legacyToken = cookieHeader.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+                        token = sbToken || legacyToken;
+                    }
+                }
+
+                if (!token) {
+                    return next(new Error('Authentication error: No token'));
+                }
+
+                // Verify with Supabase JWT Secret (same as HTTP auth middleware)
+                if (!env.SUPABASE_JWT_SECRET) {
+                    console.error('SUPABASE_JWT_SECRET not configured for Socket.io');
+                    return next(new Error('Authentication error: Server misconfigured'));
+                }
+
+                const decoded = jwt.verify(token, env.SUPABASE_JWT_SECRET) as { sub: string; email?: string };
+                socket.data.tenantId = decoded.sub; // Supabase uses 'sub' claim for user ID
+                socket.data.email = decoded.email;
                 next();
-            } catch (err) { next(new Error('Authentication error')); }
+            } catch (err) {
+                console.warn('Socket.io auth failed:', err);
+                next(new Error('Authentication error'));
+            }
         });
 
         io.on('connection', (socket) => {

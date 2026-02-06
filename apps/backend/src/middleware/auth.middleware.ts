@@ -20,7 +20,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     // 1. Get token from Header or Cookie
     const authHeader = req.headers['authorization'];
     const headerToken = authHeader && authHeader.split(' ')[1];
-    const cookieToken = req.cookies['token'] || req.cookies['sb-access-token']; // Supabase often uses sb-access-token or just access-token
+    const cookieToken = req.cookies['token'] || req.cookies['sb-access-token'];
 
     const token = headerToken || cookieToken;
 
@@ -30,30 +30,22 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     try {
         let decoded: any;
-        let isSupabaseToken = false;
 
-        // 2. Attempt to verify with Supabase Secret first (if configured)
-        if (env.SUPABASE_JWT_SECRET) {
-            try {
-                decoded = jwt.verify(token, env.SUPABASE_JWT_SECRET);
-                isSupabaseToken = true;
-            } catch (e) {
-                // Not a Supabase token, or secret is wrong
-            }
+        // 2. Strictly verify with Supabase Secret
+        if (!env.SUPABASE_JWT_SECRET) {
+            console.error('SUPABASE_JWT_SECRET is not configured. Authentication blocked.');
+            return res.status(500).json({ error: 'Identity provider not configured' });
         }
 
-        // 3. Fallback to old JWT Secret
-        if (!decoded) {
-            try {
-                decoded = jwt.verify(token, getJWTSecret());
-            } catch (e) {
-                console.error('Auth verification failed (all secrets tried):', e);
-                return res.status(403).json({ error: 'Invalid token' });
-            }
+        try {
+            decoded = jwt.verify(token, env.SUPABASE_JWT_SECRET);
+        } catch (e) {
+            console.warn('Supabase JWT verification failed:', e);
+            return res.status(403).json({ error: 'Invalid or expired token' });
         }
 
-        // 4. Extract User ID (Supabase uses 'sub', our custom uses 'userId')
-        const userId = decoded.sub || decoded.userId;
+        // 3. Extract User ID from Supabase 'sub' claim
+        const userId = decoded.sub;
 
         if (!userId) {
             return res.status(403).json({ error: 'Malformed token: User ID missing' });
@@ -61,7 +53,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
         const redis = dragonfly.getClient();
 
-        // 5. Try Cache (Status and Role)
+        // 4. Try Cache (Status and Role)
         const cacheKey = `user:identity:${userId}`;
         let identityStr = await redis.get(cacheKey);
         let identity: { status: string; role: string } | null = null;
@@ -69,21 +61,28 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         if (identityStr) {
             identity = JSON.parse(identityStr);
         } else {
-            // 6. Cache Miss: Hit DB
+            // 5. Cache Miss: Hit DB
             const results = await db.select({ status: tenants.status, role: tenants.role })
                 .from(tenants)
                 .where(eq(tenants.id, userId))
                 .limit(1);
 
             if (results.length === 0) {
-                // If using Supabase, we might need to auto-create the tenant row here 
-                // if the trigger hasn't run or we want a fallback.
-                console.error(`Auth Middleware: User ${userId} not found in DB.`);
-                return res.status(401).json({ error: 'User not found' });
+                // FALLBACK: If using Supabase, we might need to sync the user if first time
+                console.info(`Auth Middleware: User ${userId} not found in DB. Triggering sync...`);
+                const { AuthService } = await import('../services/auth.service.js');
+                const user = await AuthService.syncUser(userId, decoded.email);
+
+                if (!user) {
+                    return res.status(401).json({ error: 'User registration could not be completed' });
+                }
+                identity = { status: user.status, role: user.role };
+            } else {
+                const user = results[0];
+                identity = { status: user.status, role: user.role };
             }
 
-            const user = results[0];
-            identity = { status: user.status, role: user.role };
+            // Cache for 5 minutes
             await redis.setEx(cacheKey, 300, JSON.stringify(identity));
         }
 
@@ -98,7 +97,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         // Attach enriched identity to request locals
         res.locals.user = {
             userId: userId,
-            email: decoded.email, // Pass email for potential sync
+            email: decoded.email,
             role: identity.role
         };
         next();

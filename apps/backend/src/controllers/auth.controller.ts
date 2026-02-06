@@ -7,64 +7,28 @@ import { tenants } from '@allinbox/db';
 import { eq } from 'drizzle-orm';
 import { GoogleOAuthService, GoogleOAuthState } from '../services/google-oauth.service.js';
 
+// DEPRECATED: Sign up via Supabase Client
 export const register = async (req: Request, res: Response) => {
     try {
-        const data = registerSchema.parse(req.body);
-        const result = await AuthService.register(data); // Use validated data, not raw body
-
-        res.cookie('token', result.token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Hardened SameSite
-            maxAge: 7 * 24 * 60 * 60 * 1000
-        });
-
-        res.status(201).json({ user: result.user });
-    } catch (error) {
-        if (error instanceof z.ZodError) {
-            return res.status(400).json({ error: error.issues });
-        }
-        if (error instanceof Error && (error.message === 'User already exists' || error.message === 'Tenant already exists')) {
-            return res.status(409).json({ error: error.message });
-        }
-        console.error('Register error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        await AuthService.register(req.body);
+    } catch (error: any) {
+        res.status(410).json({ error: error.message });
     }
 };
 
+// DEPRECATED: Sign in via Supabase Client
 export const login = async (req: Request, res: Response) => {
     try {
-        const data = loginSchema.parse(req.body);
-        const result = await AuthService.login(data);
-
-        // Set HttpOnly Cookie
-        res.cookie('token', result.token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Hardened SameSite
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-        });
-
-        res.json({ user: result.user });
-    } catch (error) {
-        if (error instanceof z.ZodError) {
-            return res.status(400).json({ error: error.issues });
-        }
-        if (error instanceof Error && error.message === 'Invalid credentials') {
-            return res.status(401).json({ error: error.message });
-        }
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        await AuthService.login(req.body);
+    } catch (error: any) {
+        res.status(410).json({ error: error.message });
     }
 };
 
+// DEPRECATED: Sign out via Supabase Client
 export const logout = (req: Request, res: Response) => {
-    res.clearCookie('token', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-    });
-    res.json({ message: 'Logged out' });
+    res.clearCookie('token');
+    res.status(200).json({ message: 'Use supabase.auth.signOut() on frontend' });
 };
 
 // GET /api/auth/me - Validate session and return current user
@@ -144,82 +108,14 @@ export const completeOnboarding = async (req: Request, res: Response) => {
     }
 };
 
-// GET /api/auth/google - Initiate Google OAuth
+// DEPRECATED: Initiate Google OAuth via Supabase
 export const initiateGoogleAuth = (req: Request, res: Response) => {
-    try {
-        if (!GoogleOAuthService.isConfigured()) {
-            return res.status(503).json({ error: 'Google OAuth not configured' });
-        }
-
-        const state: GoogleOAuthState = {
-            nonce: GoogleOAuthService.generateStateNonce(),
-            redirectTo: req.query.redirect as string || '/dashboard',
-        };
-
-        // Store nonce in cookie for CSRF protection
-        res.cookie('google_auth_nonce', state.nonce, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 10 * 60 * 1000 // 10 minutes
-        });
-
-        const authUrl = GoogleOAuthService.getAuthUrl(state);
-        res.redirect(authUrl);
-    } catch (error) {
-        console.error('Google Auth Init Error:', error);
-        res.redirect('/login?error=auth_init_failed');
-    }
+    res.status(410).json({ error: 'Use supabase.auth.signInWithOAuth({ provider: "google" }) on frontend' });
 };
 
-// GET /api/auth/callback/google - Handle Google OAuth callback
+// DEPRECATED: Google OAuth Callback handled by Supabase
 export const handleGoogleCallback = async (req: Request, res: Response) => {
-    try {
-        const { code, state: encodedState, error } = req.query;
-
-        if (error) {
-            console.error('Google OAuth Error:', error);
-            return res.redirect('/login?error=google_auth_failed');
-        }
-
-        if (!code || !encodedState) {
-            return res.redirect('/login?error=missing_params');
-        }
-
-        const state = GoogleOAuthService.decodeState(encodedState as string);
-        if (!state) {
-            return res.redirect('/login?error=invalid_state');
-        }
-
-        // Verify nonce
-        const storedNonce = req.cookies.google_auth_nonce;
-        if (!storedNonce || storedNonce !== state.nonce) {
-            return res.redirect('/login?error=csrf_mismatch');
-        }
-
-        res.clearCookie('google_auth_nonce');
-
-        // Exchange code for tokens
-        const tokens = await GoogleOAuthService.exchangeCodeForTokens(code as string);
-
-        // Get user info
-        const googleUser = await GoogleOAuthService.getUserInfo(tokens.access_token);
-
-        // Login or Register
-        const result = await AuthService.loginOrRegisterWithGoogle(googleUser);
-
-        // Set Session Cookie
-        res.cookie('token', result.token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-        });
-
-        res.redirect(state.redirectTo || '/dashboard');
-    } catch (error) {
-        console.error('Google Callback Error:', error);
-        res.redirect('/login?error=login_failed');
-    }
+    res.status(410).json({ error: 'Auth callback is now handled client-side by Supabase' });
 };
 
 
