@@ -24,9 +24,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@allinbox/ai": "*",
     "@allinbox/db": "*",
     "@allinbox/types": "*",
-    "@allinbox/ai": "*",
     "@allinbox/validators": "*",
     "@socket.io/redis-adapter": "^8.3.0",
     "bcrypt": "^6.0.0",
@@ -41,6 +41,7 @@
     "node-fetch": "^3.3.2",
     "pg": "^8.18.0",
     "rate-limit-redis": "^4.3.1",
+    "rate-limiter-flexible": "^9.1.0",
     "redis": "^5.10.0",
     "socket.io": "^4.8.3",
     "winston": "^3.19.0",

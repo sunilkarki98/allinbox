@@ -41,6 +41,10 @@ export const getInteractions = async (req: Request, res: Response) => {
                 aiIntent: interactions.aiIntent,
                 aiConfidence: interactions.aiConfidence,
                 aiSuggestion: interactions.aiSuggestion,
+                // Explainability Fields
+                aiReasoning: interactions.aiReasoning,
+                aiModelVersion: interactions.aiModelVersion,
+                aiAnalyzedAt: interactions.aiAnalyzedAt,
                 flagUrgent: interactions.flagUrgent,
                 isReplied: interactions.isReplied,
                 replyText: interactions.replyText,
@@ -83,6 +87,10 @@ export const getInteractions = async (req: Request, res: Response) => {
                 aiIntent: interactions.aiIntent,
                 aiConfidence: interactions.aiConfidence,
                 aiSuggestion: interactions.aiSuggestion,
+                // Explainability Fields
+                aiReasoning: interactions.aiReasoning,
+                aiModelVersion: interactions.aiModelVersion,
+                aiAnalyzedAt: interactions.aiAnalyzedAt,
                 flagUrgent: interactions.flagUrgent,
                 isReplied: interactions.isReplied,
                 replyText: interactions.replyText,
@@ -150,6 +158,10 @@ export const getInteractions = async (req: Request, res: Response) => {
             aiIntent: interactions.aiIntent,
             aiConfidence: interactions.aiConfidence,
             aiSuggestion: interactions.aiSuggestion,
+            // Explainability Fields
+            aiReasoning: interactions.aiReasoning,
+            aiModelVersion: interactions.aiModelVersion,
+            aiAnalyzedAt: interactions.aiAnalyzedAt,
             flagUrgent: interactions.flagUrgent,
             isReplied: interactions.isReplied,
             replyText: interactions.replyText,
@@ -237,7 +249,11 @@ export const getInteractionsByLead = async (req: Request, res: Response) => {
             postCaption: posts.caption,
 
             aiIntent: interactions.aiIntent,
-            aiSuggestion: interactions.aiSuggestion
+            aiSuggestion: interactions.aiSuggestion,
+            // Explainability Fields
+            aiReasoning: interactions.aiReasoning,
+            aiModelVersion: interactions.aiModelVersion,
+            aiAnalyzedAt: interactions.aiAnalyzedAt
         })
             .from(interactions)
             .leftJoin(posts, sql`${posts.id} = COALESCE(${interactions.postId}, ${interactions.sourcePostId})`)

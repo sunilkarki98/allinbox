@@ -56,9 +56,6 @@ export class PlatformWebhooksController {
             return res.status(401).json({ error: 'Invalid signature' });
         }
 
-        // Acknowledge receipt immediately to prevent timeouts
-        res.status(200).send('EVENT_RECEIVED');
-
         try {
             // Process asynchronously via Queue
             const payload = req.body;
@@ -67,13 +64,25 @@ export class PlatformWebhooksController {
             await webhookQueue.add('process-webhook', {
                 platform,
                 payload
+            }, {
+                attempts: 5,
+                backoff: {
+                    type: 'exponential',
+                    delay: 2000
+                },
+                removeOnComplete: true,
+                removeOnFail: false
             });
 
             console.log(`✅ Queued webhook for ${platform}`);
 
+            // Acknowledge receipt only AFTER successful queueing
+            res.status(200).send('EVENT_RECEIVED');
+
         } catch (error) {
             console.error('❌ Webhook queuing error:', error);
-            // We already sent 200 OK, so just log
+            // If Redis is down, return 500 so Meta retries later
+            res.status(500).json({ error: 'Internal Server Error' });
         }
     }
 }

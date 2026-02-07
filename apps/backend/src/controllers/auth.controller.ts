@@ -34,20 +34,7 @@ export const logout = (req: Request, res: Response) => {
 // GET /api/auth/me - Validate session and return current user
 export const me = async (req: Request, res: Response) => {
     try {
-        const { userId, email } = res.locals.user as { userId: string; email?: string };
-
-        /* OLD FETCH LOGIC
-        const [tenant] = await db.select({
-            id: tenants.id,
-            email: tenants.email,
-            status: tenants.status,
-            role: tenants.role,
-        }).from(tenants).where(eq(tenants.id, userId)).limit(1);
-
-        if (!tenant) {
-            return res.status(404).json({ error: 'Tenant not found' });
-        }
-        */
+        const { userId, email, role } = res.locals.user as { userId: string; email?: string; role: string };
 
         const tenant = await AuthService.syncUser(userId, email);
 
@@ -55,7 +42,13 @@ export const me = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'User not found or sync failed' });
         }
 
-        res.json({ user: tenant });
+        // Return combined user data with role from middleware (which checks both admins/tenants)
+        res.json({
+            user: {
+                ...tenant,
+                role // "SUPER_ADMIN" or "CUSTOMER"
+            }
+        });
     } catch (error) {
         console.error('Me error:', error);
         res.status(500).json({ error: 'Internal server error' });

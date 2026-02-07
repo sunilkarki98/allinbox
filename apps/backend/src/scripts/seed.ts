@@ -41,8 +41,8 @@ async function seed() {
         // 2. Create Tenant
         console.log('Creating Tenant...');
         const tenantRes = await client.query(`
-            INSERT INTO tenants (email, password_hash, business_name, role, status, subscription_plan)
-            VALUES ($1, $2, $3, 'CUSTOMER', 'TRIAL', 'FREE')
+            INSERT INTO tenants (email, password_hash, business_name, status, subscription_plan)
+            VALUES ($1, $2, $3, 'TRIAL', 'FREE')
             RETURNING id;
         `, [TENANT_EMAIL, passwordHash, 'Global Pathways Education']);
         const tenantId = tenantRes.rows[0].id;

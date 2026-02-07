@@ -30,7 +30,8 @@ export const businessTypeEnum = pgEnum('business_type', ['PRODUCT', 'SERVICE']);
 export const sentimentEnum = pgEnum('sentiment', ['positive', 'neutral', 'negative']);
 
 // ============================================================================
-// TENANTS (SME Business Owners - Your Customers)
+// TENANTS (SME Business Owners - Your SaaS Customers)
+// Note: Tenants are ONLY customers. Admin access is via separate 'admins' table.
 // ============================================================================
 export const tenants = pgTable('tenants', {
     id: uuid('id').defaultRandom().primaryKey(),
@@ -42,7 +43,6 @@ export const tenants = pgTable('tenants', {
     avatarUrl: text('avatar_url'),
 
     businessName: varchar('business_name', { length: 255 }),
-    role: userRoleEnum('role').default('CUSTOMER').notNull(),
     status: tenantStatusEnum('status').default('TRIAL').notNull(),  // Default to TRIAL for new users
 
     // Onboarding Fields
@@ -62,6 +62,21 @@ export const tenants = pgTable('tenants', {
 });
 
 export type Tenant = typeof tenants.$inferSelect;
+
+// ============================================================================
+// ADMINS (Separate from Tenants - Platform Administrators)
+// ============================================================================
+export const admins = pgTable('admins', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    email: varchar('email', { length: 255 }).notNull().unique(),
+    passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+    name: varchar('name', { length: 255 }),
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+    lastLoginAt: timestamp('last_login_at'),
+});
+
+export type Admin = typeof admins.$inferSelect;
 
 // ============================================================================
 // CONNECTED ACCOUNTS (OAuth tokens for social platforms)
@@ -182,6 +197,10 @@ export const customers = pgTable('customers', {
     index('customer_fb_idx').on(table.tenantId, table.facebookUserId),
     index('customer_wa_idx').on(table.tenantId, table.whatsappPhone),
     index('customer_score_idx').on(table.tenantId, table.totalLeadScore),
+    // UNIQUE Constraints for Identity
+    uniqueIndex('customer_ig_unique').on(table.tenantId, table.instagramUserId),
+    uniqueIndex('customer_fb_unique').on(table.tenantId, table.facebookUserId),
+    uniqueIndex('customer_wa_unique').on(table.tenantId, table.whatsappPhone),
 ]);
 
 export type Customer = typeof customers.$inferSelect;
@@ -207,6 +226,7 @@ export const interactions = pgTable('interactions', {
     externalId: varchar('external_id', { length: 255 }).notNull(),
     senderUsername: varchar('sender_username', { length: 255 }).notNull(),
     contentText: text('content_text').notNull(),
+    mediaUrls: text('media_urls').array(), // URLs of images/videos
     receivedAt: timestamp('received_at').notNull(),
 
     // Post reference for DMs (e.g., WhatsApp messages mentioning a post)
@@ -231,6 +251,11 @@ export const interactions = pgTable('interactions', {
     sentiment: sentimentEnum('sentiment'),
     flagLowConfidence: boolean('flag_low_confidence').default(false),
     isSpam: boolean('is_spam').default(false),
+
+    // AI Traceability (Audit Compliance)
+    aiModelVersion: varchar('ai_model_version', { length: 100 }),
+    aiAnalyzedAt: timestamp('ai_analyzed_at'),
+    aiReasoning: text('ai_reasoning'),
 
     // Analytics
     leadScoreChange: integer('lead_score_change').default(0),

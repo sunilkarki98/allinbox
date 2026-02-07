@@ -60,25 +60,41 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         if (identityStr) {
             identity = JSON.parse(identityStr);
         } else {
-            // 5. Cache Miss: Hit DB
-            const results = await db.select({ status: tenants.status, role: tenants.role })
-                .from(tenants)
-                .where(eq(tenants.id, userId))
+            // 5. Cache Miss: Check Identity
+
+            // A. Check ADMINS table first
+            const { admins } = await import('@allinbox/db');
+            const [admin] = await db.select({ isActive: admins.isActive })
+                .from(admins)
+                .where(eq(admins.id, userId))
                 .limit(1);
 
-            if (results.length === 0) {
-                // FALLBACK: If using Supabase, we might need to sync the user if first time
-                console.info(`Auth Middleware: User ${userId} not found in DB. Triggering sync...`);
-                const { AuthService } = await import('../services/auth.service.js');
-                const user = await AuthService.syncUser(userId, decoded.email);
-
-                if (!user) {
-                    return res.status(401).json({ error: 'User registration could not be completed' });
+            if (admin) {
+                if (!admin.isActive) {
+                    return res.status(403).json({ error: 'Admin account is deactivated' });
                 }
-                identity = { status: user.status, role: user.role };
+                identity = { status: 'ACTIVE', role: 'SUPER_ADMIN' };
             } else {
-                const user = results[0];
-                identity = { status: user.status, role: user.role };
+                // B. Check TENANTS table
+                const results = await db.select({ status: tenants.status })
+                    .from(tenants)
+                    .where(eq(tenants.id, userId))
+                    .limit(1);
+
+                if (results.length === 0) {
+                    // FALLBACK: Sync new tenant
+                    console.info(`Auth Middleware: User ${userId} not found in DB. Triggering sync...`);
+                    const { AuthService } = await import('../services/auth.service.js');
+                    const user = await AuthService.syncUser(userId, decoded.email);
+
+                    if (!user) {
+                        return res.status(401).json({ error: 'User registration could not be completed' });
+                    }
+                    identity = { status: user.status, role: 'CUSTOMER' };
+                } else {
+                    const user = results[0];
+                    identity = { status: user.status, role: 'CUSTOMER' };
+                }
             }
 
             // Cache for 5 minutes

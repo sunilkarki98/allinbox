@@ -49,11 +49,11 @@ const startServer = async () => {
     try {
         // 1. Connect to Redis/Dragonfly
         await dragonfly.ensureConnection();
-        console.log('✅ Dragonfly/Redis Connected');
+        logger.info('✅ Dragonfly/Redis Connected');
 
         // 1.5. Connect to Supabase
         await db.execute(sql`SELECT 1`);
-        console.log('✅ Supabase Database Connected');
+        logger.info('✅ Supabase Database Connected');
 
         // 2. Initialize Rate Limiters (now safe)
         const { globalLimiter, authLimiter, webhookLimiter, tenantApiLimiter } = (await import('./middleware/rate-limiter.js')).createRateLimiters();
@@ -70,6 +70,28 @@ const startServer = async () => {
         const appSubscriber = redisClient.duplicate();
         await appSubscriber.connect();
 
+        // 3.6 [SECURITY] Socket.IO Rate Limiting
+        const { RateLimiterRedis } = await import('rate-limiter-flexible');
+        const socketRateLimiter = new RateLimiterRedis({
+            storeClient: dragonfly.getClient(),
+            points: 10, // 10 connections
+            duration: 1, // per 1 second
+            keyPrefix: 'rl:socket:handshake'
+        });
+
+        // Apply Rate Limiter BEFORE Auth
+        io.use(async (socket, next) => {
+            try {
+                // Use X-Forwarded-For if available (behind proxy)
+                const ip = (socket.handshake.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || socket.handshake.address;
+                await socketRateLimiter.consume(ip);
+                next();
+            } catch (e) {
+                logger.warn('Socket.IO connection rate limited', { ip: (socket.handshake.headers['x-forwarded-for'] as string) || socket.handshake.address });
+                next(new Error('Rate limit exceeded'));
+            }
+        });
+
         await appSubscriber.subscribe('events', (message) => {
             try {
                 const event = JSON.parse(message);
@@ -79,7 +101,7 @@ const startServer = async () => {
                     // console.log(`📡 Emitted ${event.type} to tenant:${event.tenantId}`);
                 }
             } catch (err) {
-                console.error('Error parsing Redis event:', err);
+                logger.error('Error parsing Redis event:', { error: err });
             }
         });
 
@@ -172,7 +194,7 @@ const startServer = async () => {
 
                 // Verify with Supabase JWT Secret (same as HTTP auth middleware)
                 if (!env.SUPABASE_JWT_SECRET) {
-                    console.error('SUPABASE_JWT_SECRET not configured for Socket.io');
+                    logger.error('SUPABASE_JWT_SECRET not configured for Socket.io');
                     return next(new Error('Authentication error: Server misconfigured'));
                 }
 
@@ -181,29 +203,29 @@ const startServer = async () => {
                 socket.data.email = decoded.email;
                 next();
             } catch (err) {
-                console.warn('Socket.io auth failed:', err);
+                logger.warn('Socket.io auth failed:', { error: err });
                 next(new Error('Authentication error'));
             }
         });
 
         io.on('connection', (socket) => {
             const tenantId = socket.data.tenantId;
-            console.log(`🔌 Tenant connected: ${tenantId}`);
+            logger.info(`🔌 Tenant connected`, { tenantId });
 
             // STRICT ISOLATION: Join ONLY the tenant-specific room
             // Future-proof: If we add staff accounts, they would also join 'tenant:{tenantId}'
             socket.join(`tenant:${tenantId}`);
 
-            socket.on('disconnect', () => console.log(`🔌 Tenant disconnected: ${tenantId}`));
+            socket.on('disconnect', () => logger.info(`🔌 Tenant disconnected`, { tenantId }));
         });
 
         httpServer.listen(PORT, () => {
             logger.info(`Unified Inbox Backend running on port ${PORT}`, { mode: process.env.NODE_ENV });
-            console.log(`🚀 Server ready at ${env.API_URL}`);
+            logger.info(`🚀 Server ready at ${env.API_URL}`);
         });
 
     } catch (e) {
-        console.error('❌ Failed to start server:', e);
+        logger.error('❌ Failed to start server:', { error: e });
         process.exit(1);
     }
 };
@@ -213,18 +235,18 @@ startServer();
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
-    console.log('Received shutdown signal...');
+    logger.info('Received shutdown signal...');
     try {
         await dragonfly.quit();
-        console.log('Dragonfly connection closed');
+        logger.info('Dragonfly connection closed');
 
         const { closeDbConnection } = await import('./db/index.js');
         await closeDbConnection();
     } catch (e) {
-        console.error('Error during shutdown:', e);
+        logger.error('Error during shutdown:', { error: e });
     }
     httpServer.close(() => {
-        console.log('Http server closed');
+        logger.info('Http server closed');
         process.exit(0);
     });
 };

@@ -24,29 +24,33 @@ export const getOverview = async (req: Request, res: Response) => {
         const [cachedStats] = await db.select().from(tenantStats).where(eq(tenantStats.tenantId, tenantId));
 
         if (cachedStats) {
-            // Check staleness? For now, assume IngestionService keeps it fresh.
-            // We just need to fetch Top Leads separately as that is complex ranking.
-            const topLeads = await db.select({
-                id: customers.id,
-                username: customers.displayName,
-                platform: sql<string>`'UNIFIED'`,
-                score: customers.totalLeadScore,
-                lastIntent: customers.lastIntent
-            })
-                .from(customers)
-                .where(eq(customers.tenantId, tenantId))
-                .orderBy(desc(customers.totalLeadScore))
-                .limit(5);
+            // Check staleness (TTL: 24 Hours)
+            const lastUpdated = cachedStats.lastUpdatedAt ? new Date(cachedStats.lastUpdatedAt).getTime() : 0;
+            const isFresh = (Date.now() - lastUpdated) < 24 * 60 * 60 * 1000;
 
-            res.json({
-                total: cachedStats.totalInteractions,
-                unanswered: cachedStats.unansweredCount,
-                byPlatform: cachedStats.platformCounts,
-                byType: cachedStats.typeCounts,
-                byIntent: cachedStats.intentCounts,
-                topLeads
-            });
-            return;
+            if (isFresh) {
+                const topLeads = await db.select({
+                    id: customers.id,
+                    username: customers.displayName,
+                    platform: sql<string>`'UNIFIED'`,
+                    score: customers.totalLeadScore,
+                    lastIntent: customers.lastIntent
+                })
+                    .from(customers)
+                    .where(eq(customers.tenantId, tenantId))
+                    .orderBy(desc(customers.totalLeadScore))
+                    .limit(5);
+
+                res.json({
+                    total: cachedStats.totalInteractions,
+                    unanswered: cachedStats.unansweredCount,
+                    byPlatform: cachedStats.platformCounts,
+                    byType: cachedStats.typeCounts,
+                    byIntent: cachedStats.intentCounts,
+                    topLeads
+                });
+                return;
+            }
         }
 
         // SLOW PATH (Fallback): Calculate and Cache (for first run / seed)

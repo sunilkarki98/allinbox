@@ -24,6 +24,7 @@ import { ingestionWorker } from './workers/ingestion.worker.js';
 import { analysisWorker } from './workers/analysis.worker.js';
 import { decayWorker } from './workers/decay.worker.js';
 import { webhookWorker } from './workers/webhook.worker.js';
+import { statsReconcilerWorker } from './workers/stats-reconciler.worker.js';
 import { scheduleGlobalDecay } from './workers/queue.js';
 
 console.log('[Legacy Orchestrator] Starting all workers...');
@@ -41,6 +42,9 @@ if (!decayWorker.isRunning()) {
 if (!webhookWorker.isRunning()) {
     webhookWorker.run();
 }
+if (!statsReconcilerWorker.isRunning()) {
+    statsReconcilerWorker.run();
+}
 
 // Schedule global decay (idempotent)
 scheduleGlobalDecay().catch(err => console.error('Failed to schedule decay job:', err));
@@ -53,7 +57,9 @@ const shutdown = async () => {
     await Promise.all([
         ingestionWorker.close(),
         analysisWorker.close(),
-        decayWorker.close()
+        decayWorker.close(),
+        webhookWorker.close(),
+        statsReconcilerWorker.close()
     ]);
     console.log('[Legacy Orchestrator] All workers closed');
     process.exit(0);

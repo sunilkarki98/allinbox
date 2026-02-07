@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { InstagramIcon, TikTokIcon, WhatsAppIcon } from '@/components/icons/social-icons';
+import { FacebookIcon, InstagramIcon, WhatsAppIcon } from '@/components/icons/social-icons';
 
 export default function Home() {
   return (
@@ -17,7 +17,7 @@ export default function Home() {
             <Link href="/login" className="text-gray-300 hover:text-white transition-colors font-medium">
               Login
             </Link>
-            <Link href="/login" className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-full font-medium transition-colors">
+            <Link href="/login?view=signup" className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-full font-medium transition-colors">
               Get Started Free
             </Link>
           </div>
@@ -40,12 +40,12 @@ export default function Home() {
           </h1>
 
           <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Stop switching between apps. Manage Instagram, TikTok, and WhatsApp messages
+            Stop switching between apps. Manage Instagram, Facebook, and WhatsApp messages
             in one place. Let AI identify your hottest leads automatically.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/login" className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40">
+            <Link href="/login?view=signup" className="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40">
               Start Free Trial →
             </Link>
             <Link href="/login" className="w-full sm:w-auto border border-gray-700 hover:border-gray-600 text-gray-300 hover:text-white px-8 py-4 rounded-full font-medium transition-colors">
@@ -61,8 +61,8 @@ export default function Home() {
             </div>
             <div className="w-px h-6 bg-gray-700" />
             <div className="flex items-center gap-3 text-gray-300">
-              <TikTokIcon className="text-cyan-400 w-6 h-6" />
-              <span className="font-medium">TikTok</span>
+              <FacebookIcon className="text-blue-500 w-6 h-6" />
+              <span className="font-medium">Facebook</span>
             </div>
             <div className="w-px h-6 bg-gray-700" />
             <div className="flex items-center gap-3 text-gray-300">
@@ -89,7 +89,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-bold mb-3">Unified Inbox</h3>
               <p className="text-gray-400 leading-relaxed">
-                All your Instagram DMs, TikTok comments, and WhatsApp messages in one beautiful dashboard. No more app switching.
+                All your Instagram DMs, Facebook messages, and WhatsApp messages in one beautiful dashboard. No more app switching.
               </p>
             </div>
 
@@ -129,7 +129,7 @@ export default function Home() {
                 1
               </div>
               <h3 className="text-lg font-semibold mb-2">Connect Accounts</h3>
-              <p className="text-gray-400">Link your Instagram, TikTok, and WhatsApp business accounts</p>
+              <p className="text-gray-400">Link your Instagram, Facebook, and WhatsApp business accounts</p>
             </div>
             <div className="relative">
               <div className="w-12 h-12 bg-teal-600 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
@@ -157,7 +157,7 @@ export default function Home() {
             <p className="text-gray-400 text-lg mb-8">
               Join thousands of online sellers who never miss a customer message.
             </p>
-            <Link href="/login" className="inline-block bg-white text-gray-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-gray-100 transition-colors">
+            <Link href="/login?view=signup" className="inline-block bg-white text-gray-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-gray-100 transition-colors">
               Get Started Free →
             </Link>
           </div>

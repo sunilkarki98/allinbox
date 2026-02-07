@@ -35,131 +35,131 @@ export class CustomersService {
      * Will attempt to merge if existing profile found on different platform.
      * Uses a retry mechanism to handle race conditions during concurrent creation.
      */
+
     static async findOrCreate(
         tenantId: string,
         identifier: UserIdentifier
     ): Promise<{ profile: Customer; isNew: boolean }> {
         const { platform, username, userId, phone, displayName } = identifier;
 
-        let retries = 0;
-        const MAX_RETRIES = 2;
+        // Common update values (refresh timestamp, update display name if missing)
+        const updateValues: any = {
+            updatedAt: new Date(),
+        };
+        // Only update display name if it's currently "Unknown" or generic? 
+        // For now, let's allow updating it if provided and the existing one was likely auto-generated.
+        // Actually, onConflictDoUpdate 'set' logic is static. We can use sql`CASE...` but simpler to just update.
+        if (displayName) updateValues.displayName = displayName;
+        if (username && platform === 'INSTAGRAM') updateValues.instagramUsername = username;
+        if (username && platform === 'TIKTOK') updateValues.tiktokUsername = username;
 
-        while (retries <= MAX_RETRIES) {
-            try {
-                // Build query conditions based on platform
-                const conditions = [];
+        try {
+            // STRATEGY: Use ON CONFLICT DO UPDATE for atomic concurrency safety
+            // We target the UNIQUE constraints we just added: (tenantId, platformId)
 
-                if (platform === 'INSTAGRAM') {
-                    // PRIORITIZE Stable ID
-                    if (userId) conditions.push(eq(customers.instagramUserId, userId));
-                    // Check legacy username match (for backfill)
-                    if (username) conditions.push(eq(customers.instagramUsername, username));
-                } else if (platform === 'FACEBOOK' && userId) {
-                    conditions.push(eq(customers.facebookUserId, userId));
-                } else if (platform === 'WHATSAPP' && phone) {
-                    conditions.push(eq(customers.whatsappPhone, phone));
-                } else if (platform === 'TIKTOK' && username) {
-                    conditions.push(eq(customers.tiktokUsername, username));
-                }
-
-                // REMOVED: Name-based merging is too risky (User Feedback)
-                // We only merge on Strong Identifiers (Phone, Handle, Email)
-
-                // Try to find existing profile
-                if (conditions.length > 0) {
-                    const existing = await db.select()
-                        .from(customers)
-                        .where(and(
-                            eq(customers.tenantId, tenantId),
-                            or(...conditions)
-                        ))
-                        .limit(1);
-
-                    if (existing.length > 0) {
-                        // Update with new platform info if not already set
-                        const profile = existing[0];
-                        const updates: Partial<typeof customers.$inferInsert> = {};
-                        let needsUpdate = false;
-
-                        // INSTAGRAM LOGIC (Auto-Repair Username Changes)
-                        if (platform === 'INSTAGRAM') {
-                            // 1. Backfill ID if missing (Critical for stability)
-                            if (userId && !profile.instagramUserId) {
-                                updates.instagramUserId = userId;
-                                needsUpdate = true;
-                            }
-                            // 2. Update Username if changed (User renamed themselves)
-                            if (username && profile.instagramUsername !== username) {
-                                updates.instagramUsername = username;
-                                needsUpdate = true;
-                            }
-                        }
-
-                        if (platform === 'FACEBOOK' && userId && !profile.facebookUserId) {
-                            updates.facebookUserId = userId;
-                            needsUpdate = true;
-                        }
-                        if (platform === 'WHATSAPP' && phone && !profile.whatsappPhone) {
-                            updates.whatsappPhone = phone;
-                            needsUpdate = true;
-                        }
-                        if (platform === 'TIKTOK' && username && !profile.tiktokUsername) {
-                            updates.tiktokUsername = username;
-                            needsUpdate = true;
-                        }
-                        if (displayName && !profile.displayName) {
-                            updates.displayName = displayName;
-                            needsUpdate = true;
-                        }
-
-                        if (needsUpdate) {
-                            updates.updatedAt = new Date();
-                            await db.update(customers)
-                                .set(updates)
-                                .where(eq(customers.id, profile.id));
-
-                            console.log(`📎 Merged/Updated ${platform} identity for profile: ${profile.id}`);
-                        }
-
-                        return { profile: { ...profile, ...updates } as Customer, isNew: false };
-                    }
-                }
-
-                // Create new profile
-                const [newProfile] = await db.insert(customers)
+            if (platform === 'INSTAGRAM' && userId) {
+                const [profile] = await db.insert(customers)
                     .values({
                         tenantId,
-                        displayName: displayName || username || phone || 'Unknown',
-                        instagramUsername: platform === 'INSTAGRAM' ? username : null,
-                        instagramUserId: platform === 'INSTAGRAM' ? userId : null, // Store stable ID
-                        facebookUserId: platform === 'FACEBOOK' ? userId : null,
-                        whatsappPhone: platform === 'WHATSAPP' ? phone : null,
-                        tiktokUsername: platform === 'TIKTOK' ? username : null,
+                        displayName: displayName || username || 'Instagram User',
+                        instagramUserId: userId, // Unique Key
+                        instagramUsername: username,
                         totalLeadScore: 0,
                         totalInteractions: 0,
                         status: 'COLD',
                     })
+                    .onConflictDoUpdate({
+                        target: [customers.tenantId, customers.instagramUserId],
+                        set: updateValues,
+                    })
                     .returning();
 
-                console.log(`✨ Created new user profile: ${newProfile.id} (${platform}: ${username || userId || phone})`);
-                return { profile: newProfile, isNew: true };
-
-            } catch (err: any) {
-                // Check if error is due to unique constraint violation (Race Condition)
-                // Postgres code 23505 is unique_violation
-                if (err.code === '23505' && retries < MAX_RETRIES) {
-                    console.warn(`[CustomersService] Race condition detected, retrying findOrCreate... attempt ${retries + 1}`);
-                    retries++;
-                    // Short random delay to reduce contention
-                    await new Promise(res => setTimeout(res, Math.random() * 100));
-                    continue;
-                }
-                throw err;
+                return { profile, isNew: profile.createdAt ? profile.createdAt.getTime() > Date.now() - 1000 : false }; // Approx check
             }
-        }
 
-        throw new Error('Failed to create customer after retries');
+            if (platform === 'FACEBOOK' && userId) {
+                const [profile] = await db.insert(customers)
+                    .values({
+                        tenantId,
+                        displayName: displayName || 'Facebook User',
+                        facebookUserId: userId, // Unique Key
+                        totalLeadScore: 0,
+                        totalInteractions: 0,
+                        status: 'COLD',
+                    })
+                    .onConflictDoUpdate({
+                        target: [customers.tenantId, customers.facebookUserId],
+                        set: updateValues,
+                    })
+                    .returning();
+                return { profile, isNew: profile.createdAt ? profile.createdAt.getTime() > Date.now() - 1000 : false };
+            }
+
+            if (platform === 'WHATSAPP' && phone) {
+                const [profile] = await db.insert(customers)
+                    .values({
+                        tenantId,
+                        displayName: displayName || phone,
+                        whatsappPhone: phone, // Unique Key
+                        totalLeadScore: 0,
+                        totalInteractions: 0,
+                        status: 'COLD',
+                    })
+                    .onConflictDoUpdate({
+                        target: [customers.tenantId, customers.whatsappPhone],
+                        set: updateValues,
+                    })
+                    .returning();
+                return { profile, isNew: profile.createdAt ? profile.createdAt.getTime() > Date.now() - 1000 : false };
+            }
+
+            // Fallback for Platforms without Strict IDs (e.g. TikTok currently) OR if ID is missing
+            // This path relies on manual SELECT -> INSERT and might still have races, 
+            // but we don't have constraints to rely on for these cases yet.
+
+            const conditions = [];
+            if (platform === 'TIKTOK' && username) {
+                conditions.push(eq(customers.tiktokUsername, username));
+            } else if (username) {
+                // Loose match? risky.
+                // conditions.push(eq(customers.instagramUsername, username)); // only if NOT instagram platform logic above
+            }
+
+            if (conditions.length > 0) {
+                const existing = await db.select().from(customers)
+                    .where(and(eq(customers.tenantId, tenantId), or(...conditions)))
+                    .limit(1);
+
+                if (existing.length > 0) {
+                    // Update?
+                    await db.update(customers).set(updateValues).where(eq(customers.id, existing[0].id));
+                    return { profile: { ...existing[0], ...updateValues }, isNew: false };
+                }
+            }
+
+            // Insert new (Fallback)
+            const [newProfile] = await db.insert(customers)
+                .values({
+                    tenantId,
+                    displayName: displayName || username || phone || 'Unknown',
+                    tiktokUsername: platform === 'TIKTOK' ? username : null,
+                    // If we got here with IG/FB/WA but no ID, we insert what we have (risky for dupes if ID comes later)
+                    instagramUsername: platform === 'INSTAGRAM' ? username : null,
+                    totalLeadScore: 0,
+                    status: 'COLD',
+                })
+                .returning();
+
+            return { profile: newProfile, isNew: true };
+
+        } catch (err: any) {
+            console.error('[CustomersService] Error in findOrCreate:', err);
+            // If we hit a unique constraint here (e.g. race in fallback), we re-throw.
+            // But strict ID paths are handled by ON CONFLICT.
+            throw err;
+        }
     }
+
 
     /**
      * Increment interaction count and update last interaction time

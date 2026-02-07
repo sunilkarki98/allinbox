@@ -33,6 +33,7 @@ export interface AnalysisResult {
     sentiment: AISentiment;
     suggestion: string;
     reasoning?: string; // Optional reasoning for debugging
+    modelVersion?: string; // AI model version for traceability
 }
 
 export interface AIProvider {

@@ -6,6 +6,9 @@ import { db } from '../db/index.js';
 import { connectedAccounts } from '@allinbox/db';
 import { eq } from 'drizzle-orm';
 import { getBullConnection } from '../utils/clients.js';
+import { logger } from '../utils/logger.js';
+
+import { AuditService } from '../services/audit.service.js';
 
 interface WebhookJobData {
     platform: PlatformType;
@@ -14,14 +17,14 @@ interface WebhookJobData {
 
 export const webhookWorker = new Worker('webhook-queue', async (job: Job<WebhookJobData>) => {
     const { platform, payload } = job.data;
-    console.log(`[WebhookWorker] Processing ${platform} event (Job ${job.id})`);
+    logger.info(`[WebhookWorker] Processing ${platform} event`, { jobId: job.id, platform });
 
     try {
         // 1. Parse Payload
         const normalizedData = await PlatformService.parseWebhook(platform, payload);
 
         if (normalizedData.posts.length === 0 && normalizedData.interactions.length === 0) {
-            console.log(`[WebhookWorker] No relevant data in webhook (Job ${job.id})`);
+            logger.info(`[WebhookWorker] No relevant data in webhook`, { jobId: job.id });
             return;
         }
 
@@ -38,8 +41,14 @@ export const webhookWorker = new Worker('webhook-queue', async (job: Job<Webhook
                     platformUserId = payload.entry[0].changes[0].value.metadata.phone_number_id;
                 }
             }
-        } catch (e) {
-            console.warn(`[WebhookWorker] Failed to extract ID from payload:`, e);
+        } catch (e: any) {
+            logger.warn(`[WebhookWorker] Failed to extract ID from payload`, { error: e, jobId: job.id });
+            await AuditService.log({
+                action: 'WEBHOOK_PARSE_ERROR',
+                entityType: 'platform',
+                entityId: platform,
+                details: { error: e.message, jobId: job.id }
+            });
         }
 
         if (!platformUserId) {
@@ -53,7 +62,13 @@ export const webhookWorker = new Worker('webhook-queue', async (job: Job<Webhook
             .limit(1);
 
         if (!account) {
-            console.warn(`[WebhookWorker] No connected account found for ${platform} ID: ${platformUserId}`);
+            logger.warn(`[WebhookWorker] No connected account found`, { platform, platformUserId, jobId: job.id });
+            await AuditService.log({
+                action: 'WEBHOOK_UNKNOWN_TENANT',
+                entityType: 'connected_account',
+                entityId: platformUserId,
+                details: { platform, jobId: job.id }
+            });
             return; // Don't retry if account doesn't exist
         }
 
@@ -65,10 +80,10 @@ export const webhookWorker = new Worker('webhook-queue', async (job: Job<Webhook
             account.id
         );
 
-        console.log(`[WebhookWorker] Successfully processed for Tenant ${account.tenantId}`);
+        logger.info(`[WebhookWorker] Successfully processed`, { tenantId: account.tenantId, jobId: job.id });
 
     } catch (err) {
-        console.error(`[WebhookWorker] Failed to process webhook job ${job.id}:`, err);
+        logger.error(`[WebhookWorker] Failed to process webhook job`, { error: err, jobId: job.id });
         throw err; // Trigger retry
     }
 }, {

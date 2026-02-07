@@ -32,11 +32,12 @@ class DragonflyManager {
             url: REDIS_URL,
             socket: {
                 reconnectStrategy: (retries) => {
-                    if (retries > 20) {
-                        console.error('[Dragonfly] Max reconnection retries reached.');
-                        return new Error('Max retries reached');
+                    // Infinite retries with exponential backoff, capped at 5 seconds
+                    const delay = Math.min(retries * 100, 5000);
+                    if (retries % 10 === 0) {
+                        console.log(`[Dragonfly] Reconnecting... Attempt ${retries} (Delay: ${delay}ms)`);
                     }
-                    return Math.min(retries * 100, 3000);
+                    return delay;
                 }
             }
         });

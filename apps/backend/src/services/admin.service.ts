@@ -17,7 +17,6 @@ export class AdminService {
                 email: tenants.email,
                 businessName: tenants.businessName,
                 status: tenants.status,
-                role: tenants.role,
                 subscriptionPlan: tenants.subscriptionPlan,
                 trialEndsAt: tenants.trialEndsAt,
                 createdAt: tenants.createdAt,
@@ -132,14 +131,23 @@ export class AdminService {
         });
     }
 
-    // Allowed system settings keys
+    // Allowed system settings keys (admin-only configuration)
     private static ALLOWED_SETTING_KEYS = [
-        'GEMINI_API_KEY',
-        'GEMINI_MODEL',
+        // AI Configuration
+        'AI_MODEL',              // Which AI model to use (e.g., 'gemini-1.5-flash', 'gemini-1.5-pro')
+        'GEMINI_API_KEY',        // Gemini API key
+
+        // Social Platform Credentials
         'TIKTOK_CLIENT_KEY',
         'TIKTOK_CLIENT_SECRET',
         'INSTAGRAM_CLIENT_ID',
         'INSTAGRAM_CLIENT_SECRET',
+        'FACEBOOK_APP_ID',
+        'FACEBOOK_APP_SECRET',
+        'WHATSAPP_PHONE_NUMBER_ID',
+        'WHATSAPP_ACCESS_TOKEN',
+
+        // Webhook Configuration
         'WEBHOOK_URL',
         'WEBHOOK_SECRET'
     ];

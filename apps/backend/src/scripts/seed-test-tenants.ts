@@ -16,7 +16,6 @@ async function seedTestTenants() {
         email: 'shoes@example.com',
         passwordHash,
         businessName: 'Kathmandu Kicks',
-        role: 'CUSTOMER',
         status: 'ACTIVE', // valid enum value
         language: 'ne', // Nepali
         subscriptionPlan: 'FREE'
@@ -57,7 +56,6 @@ async function seedTestTenants() {
         email: 'repair@example.com',
         passwordHash,
         businessName: 'Hamro Repair',
-        role: 'CUSTOMER',
         status: 'ACTIVE',
         language: 'en', // English
         subscriptionPlan: 'FREE'

@@ -37,6 +37,8 @@ export interface FetchedInteraction {
         adId?: string;     // Meta Ad ID
         type?: string;     // "OPEN_THREAD", etc.
     };
+    mediaUrls?: string[];
+    verb?: 'add' | 'edit' | 'remove';
 }
 
 export interface FetchResult {
@@ -228,6 +230,8 @@ export class PlatformService {
                                         senderUsername: 'Unknown User',
                                         contentText: event.message.text || '[Media]',
                                         receivedAt: new Date(entry.time || Date.now()),
+                                        mediaUrls: event.message.attachments?.map((a: any) => a.payload?.url).filter(Boolean) || [],
+                                        verb: 'add', // DMs are usually adds, 'unsend' events are separate
                                     };
 
                                     // Extract Referral from Message
@@ -281,6 +285,11 @@ export class PlatformService {
                                     const value = change.value;
                                     // Handle comment
                                     if (value.item === 'comment' || value.comment_id) {
+                                        // Handle verb (add, edited, delete/remove)
+                                        // Graph API uses 'add', 'edited', 'remove'
+                                        const rawVerb = value.verb || 'add';
+                                        const verb = rawVerb === 'edited' ? 'edit' : rawVerb === 'remove' ? 'remove' : 'add';
+
                                         result.interactions.push({
                                             platform,
                                             type: 'COMMENT',
@@ -289,7 +298,10 @@ export class PlatformService {
                                             senderUsername: value.from.name || 'Unknown User',
                                             contentText: value.message || '',
                                             receivedAt: new Date(value.created_time * 1000 || Date.now()),
-                                            postExternalId: value.post_id ? value.post_id.split('_')[1] : undefined // Often PageID_PostID
+                                            postExternalId: value.post_id ? value.post_id.split('_')[1] : undefined, // Often PageID_PostID
+                                            verb,
+                                            // Comments don't usually have standard attachment fields in webhook, 
+                                            // but might have 'attachment' field in data if expanded.
                                         });
                                     }
                                 }
@@ -312,6 +324,18 @@ export class PlatformService {
                                             senderId: msg.from, // Phone number
                                             senderUsername: msg.profile?.name || msg.from,
                                             contentText: msg.text.body,
+                                            receivedAt: new Date(parseInt(msg.timestamp) * 1000),
+                                        });
+                                    } else if (msg.type === 'image') {
+                                        // Handle Image
+                                        result.interactions.push({
+                                            platform: 'WHATSAPP',
+                                            type: 'DM',
+                                            externalId: msg.id,
+                                            senderId: msg.from,
+                                            senderUsername: msg.profile?.name || msg.from,
+                                            contentText: msg.image.caption || '[Image]',
+                                            mediaUrls: [msg.image.id], // Note: Needs media retrieval API, storing ID for now
                                             receivedAt: new Date(parseInt(msg.timestamp) * 1000),
                                         });
                                     }

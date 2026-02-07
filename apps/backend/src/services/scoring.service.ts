@@ -12,12 +12,16 @@ export class ScoringService {
         'LIKE': 0.1
     };
 
+    // ALIGNED: All intents from AIIntentSchema are now scored
     private static INTENT_SCORES: Record<string, number> = {
         'purchase_intent': 50,
-        'pricing_inquiry': 20,
-        'shipping_inquiry': 10,
-        'support_issue': 5,
-        'general': 0,
+        'pricing_inquiry': 30,
+        'shipping_inquiry': 25,
+        'service_inquiry': 20,
+        'support_issue': 10,
+        'general_comment': 5,
+        'general': 2,
+        'complaint': -15,
         'spam': -100
     };
 

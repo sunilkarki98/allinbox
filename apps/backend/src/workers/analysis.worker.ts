@@ -45,14 +45,17 @@ export const analysisWorker = new Worker('analysis-queue', async (job: Job) => {
             console.warn(`[Analysis] Tenant ${interaction.tenantId} has no business name. Using fallback.`);
         }
 
-        // 3. Check for Global Model Override
+        // 3. Check for Admin Model Override (optional - auto-discovery is default)
         const { SystemSettingsService } = await import('../services/system-settings.service.js');
-        const manualModel = await SystemSettingsService.get('AI_MODEL');
+        const adminModelOverride = await SystemSettingsService.get('AI_MODEL');
 
+        // If admin hasn't set AI_MODEL, it will be auto-discovered by ModelDiscoveryService
+        // in the GeminiProvider using the API key. This ensures latest models are used.
         const context = {
             businessName: safeBusinessName,
             language: tenant.language || 'en',
-            modelConfig: manualModel ? { model: manualModel } : undefined
+            // Only pass modelConfig if admin has explicitly set a model override
+            modelConfig: adminModelOverride ? { model: adminModelOverride } : undefined
         };
 
         // 4. Perform AI Analysis with Context
@@ -68,14 +71,18 @@ export const analysisWorker = new Worker('analysis-queue', async (job: Job) => {
 
         // 3. AI Analysis & DB Update in Transaction
         const result = await db.transaction(async (tx) => {
-            // 1. Update Interaction with AI Results
+            // 1. Update Interaction with AI Results (including traceability fields)
             await tx.update(interactions).set({
                 aiIntent: analysis.intent,
                 aiConfidence: analysis.confidence,
                 aiSuggestion: analysis.suggestion,
                 sentiment: analysis.sentiment,
                 flagLowConfidence,
-                isSpam
+                isSpam,
+                // AI Traceability (Audit Compliance)
+                aiModelVersion: analysis.modelVersion || 'unknown',
+                aiAnalyzedAt: new Date(),
+                aiReasoning: analysis.reasoning || null
             }).where(eq(interactions.id, interactionId));
 
             // 2. Update or Create Lead Score via Service (Targeting Unified Customer)
