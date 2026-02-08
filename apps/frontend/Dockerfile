@@ -23,6 +23,7 @@ RUN npm run build -w @allinbox/types
 RUN npm run build -w @allinbox/validators
 RUN npm run build -w @allinbox/frontend
 
+# Stage 2: Runner
 FROM node:20-alpine AS runner
 WORKDIR /app
 

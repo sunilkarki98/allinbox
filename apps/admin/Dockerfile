@@ -23,6 +23,7 @@ RUN npm run build -w @allinbox/types
 RUN npm run build -w @allinbox/validators
 RUN npm run build -w @allinbox/admin
 
+# Stage 2: Runner
 FROM node:20-alpine AS runner
 WORKDIR /app
 
@@ -39,6 +40,5 @@ USER node
 EXPOSE 3002
 
 # Next.js standalone server
-# Note: Next.js standalone server listens on PORT env var, defaults to 3000
 ENV PORT=3002
 CMD ["node", "apps/admin/server.js"]

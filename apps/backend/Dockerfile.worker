@@ -20,7 +20,10 @@ COPY tsconfig.json turbo.json ./
 COPY packages ./packages
 COPY apps/backend ./apps/backend
 
-# Build backend (includes worker code)
+# Build packages in correct order
+RUN npm run build -w @allinbox/types
+RUN npm run build -w @allinbox/validators
+RUN npm run build -w @allinbox/db
 RUN npm run build -w @allinbox/backend
 
 # Prune dev dependencies
@@ -32,9 +35,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Create non-root user
-RUN addgroup -S app && adduser -S app -G app
-USER app
+# Use the existing 'node' user from the alpine image
+USER node
 
 # Copy node_modules
 COPY --from=builder /app/node_modules ./node_modules
@@ -43,5 +45,5 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 COPY --from=builder /app/apps/backend/package.json ./apps/backend/package.json
 
-# Start worker
-CMD ["npm", "--prefix", "apps/backend", "run", "start:worker:all"]
+# Start worker using the correct entry point directly for better signal handling
+CMD ["node", "apps/backend/dist/workers/all.entry.js"]
