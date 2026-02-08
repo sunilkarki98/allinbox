@@ -45,7 +45,7 @@ services:
       dragonfly:
         condition: service_healthy
     env_file:
-      - .env
+      - .env.production
     networks:
       - allinbox_net
     healthcheck:
