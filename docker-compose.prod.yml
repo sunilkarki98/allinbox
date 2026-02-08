@@ -6,9 +6,30 @@ networks:
 
 volumes:
   dragonfly_data:
+  postgres_data:
 
 
 services:
+  # =====================
+  # Postgres DB
+  # =====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: allinbox_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: allinboxdb123
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - allinbox_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      retries: 5
+
   # =====================
   # Dragonfly Cache
   # =====================
@@ -25,6 +46,10 @@ services:
       - dragonfly_data:/data
     networks:
       - allinbox_net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      retries: 5
 
   # =====================
   # Backend
@@ -36,24 +61,27 @@ services:
     container_name: allinbox_backend
     restart: always
     depends_on:
-      - dragonfly
+      postgres:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=redis://dragonfly:6379
-      - NODE_ENV=production
-      - PORT=3001
-      - API_URL=${API_URL}
-      - FRONTEND_URL=${FRONTEND_URL} # e.g., https://yourfrontend.vercel.app
-      - ADMIN_URL=${ADMIN_URL}
-      - JWT_SECRET=${JWT_SECRET}
-      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      DATABASE_URL: postgresql://postgres:allinboxdb123@postgres:5432/postgres
+      REDIS_URL: redis://dragonfly:6379
+      NODE_ENV: production
+      PORT: 3001
+      API_URL: https://136.114.50.27
+      FRONTEND_URL: https://allinbox-frontend.vercel.app
+      ADMIN_URL: https://allinbox-admin.vercel.app
+      JWT_SECRET: your_jwt_secret_here
+      SUPABASE_JWT_SECRET: your_supabase_jwt_here
     networks:
       - allinbox_net
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health" ]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
 
   # =====================
   # Worker
@@ -65,24 +93,26 @@ services:
     container_name: allinbox_worker
     restart: always
     depends_on:
-      - dragonfly
+      backend:
+        condition: service_healthy
     command: npm run start:worker:all
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=redis://dragonfly:6379
-      - NODE_ENV=production
+      DATABASE_URL: postgresql://postgres:allinboxdb123@postgres:5432/postgres
+      REDIS_URL: redis://dragonfly:6379
+      NODE_ENV: production
     networks:
       - allinbox_net
 
   # =====================
-  # NGINX Reverse Proxy + HTTPS
+  # Nginx Reverse Proxy
   # =====================
   nginx:
     image: nginx:stable-alpine
     container_name: allinbox_nginx
     restart: always
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
