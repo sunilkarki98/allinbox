@@ -9,12 +9,11 @@ volumes:
 
 
 services:
-
   # =====================
-  # Dragonfly Cache
+  # Dragonfly/Redis
   # =====================
   dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
     container_name: allinbox_dragonfly
     restart: always
     ulimits:
@@ -27,42 +26,33 @@ services:
     networks:
       - allinbox_net
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6379" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # =====================
-  # Backend
+  # Backend API
   # =====================
   backend:
     build:
       context: .
-      dockerfile: apps/backend/Dockerfile
+      dockerfile: apps/backend/Dockerfile.backend
     container_name: allinbox_backend
     restart: always
-    depends_on:
-      dragonfly:
-        condition: service_healthy
     env_file:
       - .env.production
+    depends_on:
+      - dragonfly
     networks:
       - allinbox_net
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3001/api/health || exit 1" ]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: "1G"
+    ports:
+      - "3001:3001"
 
   # =====================
   # Worker
@@ -70,40 +60,26 @@ services:
   worker:
     build:
       context: .
-      dockerfile: apps/backend/Dockerfile
+      dockerfile: apps/backend/Dockerfile.worker
     container_name: allinbox_worker
     restart: always
-    depends_on:
-      dragonfly:
-        condition: service_healthy
-      backend:
-        condition: service_started
-    command: sh -c "while ! nc -z dragonfly 6379; do echo 'Waiting for Dragonfly...'; sleep 2; done; npm run start:worker:all"
     env_file:
       - .env.production
+    depends_on:
+      - dragonfly
+      - backend
     networks:
       - allinbox_net
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: "512M"
 
   # =====================
-  # NGINX Reverse Proxy + HTTPS
+  # NGINX Reverse Proxy
   # =====================
   nginx:
     image: nginx:stable-alpine
     container_name: allinbox_nginx
     restart: always
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     ports:
       - "80:80"
       - "443:443"
@@ -112,8 +88,3 @@ services:
       - ./nginx/certs:/etc/nginx/certs:ro
     networks:
       - allinbox_net
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"

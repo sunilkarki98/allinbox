@@ -2,7 +2,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install build tools for native modules if needed
+# Build tools for native modules
 RUN apk add --no-cache python3 g++ make
 
 # Copy root & workspace package.json for caching
@@ -12,7 +12,7 @@ COPY packages/types/package.json ./packages/types/
 COPY packages/validators/package.json ./packages/validators/
 COPY apps/backend/package.json ./apps/backend/
 
-# Install all workspaces dependencies (root + backend)
+# Install dependencies (root + backend workspace)
 RUN npm ci --include-workspace-root
 
 # Copy source code
@@ -26,10 +26,10 @@ RUN npm run build -w @allinbox/validators
 RUN npm run build -w @allinbox/db
 RUN npm run build -w @allinbox/backend
 
-# Prune dev dependencies to reduce size
+# Prune dev dependencies
 RUN npm prune --production
 
-# Stage 2: Runner (minimal image)
+# Stage 2: Runner
 FROM node:20-alpine AS runner
 WORKDIR /app
 
@@ -39,7 +39,7 @@ ENV NODE_ENV=production
 RUN addgroup -S app && adduser -S app -G app
 USER app
 
-# Copy only the required node_modules for backend
+# Copy required node_modules
 COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built packages
@@ -56,5 +56,5 @@ COPY --from=builder /app/packages/db/package.json ./packages/db/package.json
 COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 COPY --from=builder /app/apps/backend/package.json ./apps/backend/package.json
 
-# Set entrypoint
+# Start backend
 CMD ["node", "apps/backend/dist/index.js"]
